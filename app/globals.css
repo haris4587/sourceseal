@@ -109,7 +109,7 @@ summary {
 
 .text-gradient {
   color: transparent;
-  background: linear-gradient(110deg, #d9f99d 12%, #6ee7b7 66%, #f1f5f9 105%);
+  background: linear-gradient(110deg, #d9f99d 8%, #6ee7b7 48%, #f0abfc 92%);
   background-clip: text;
   -webkit-background-clip: text;
 }
@@ -145,6 +145,16 @@ summary {
   width: calc(100% - 2.9rem);
   height: 1px;
   background: linear-gradient(90deg, rgba(190, 242, 100, 0.28), rgba(255, 255, 255, 0.08));
+}
+
+.timeline-entry:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.8rem;
+  width: 1px;
+  height: calc(100% + 1rem);
+  background: linear-gradient(to bottom, rgba(190, 242, 100, 0.32), rgba(240, 171, 252, 0.18));
 }
 
 .verdict-card {

@@ -22,21 +22,26 @@ import {
 } from "@/components/ui/card";
 
 const implementationPoints = [
-  "Fetches 1–3 public HTTPS evidence pages inside GenVM",
+  "Fetches up to five public evidence pages plus counter-evidence inside GenVM",
   "Treats retrieved page content as untrusted input",
-  "Uses independent leader and validator analysis",
-  "Has validators independently check the proposed verdict against the evidence",
-  "Stores the accepted verdict as a queryable on-chain record",
+  "Uses independent leader and validator analysis for initial and challenged verdicts",
+  "Scores evidence quality, source diversity, citations, and risk flags",
+  "Preserves the initial verdict and every accepted re-adjudication as linked records",
+  "Anchors inputs with deterministic SHA-256 fingerprints",
   "Connects the web interface through the official GenLayerJS SDK",
 ];
 
-const contractAddress = "0xC9425eC2f9899473a3A403550C6241CBC3d5224e";
+const contractAddress = "0x43bD65C68220D08b20793208d50F9F59dEDd7691";
 const explorerUrl =
-  "https://explorer-studio.genlayer.com/address/0xC9425eC2f9899473a3A403550C6241CBC3d5224e";
+  "https://explorer-studio.genlayer.com/address/0x43bD65C68220D08b20793208d50F9F59dEDd7691";
 const studioUrl =
-  "https://studio.genlayer.com/?import-contract=0xC9425eC2f9899473a3A403550C6241CBC3d5224e";
-const proofUrl =
-  "https://explorer-studio.genlayer.com/tx/0x92fd7f7060fac8ddd2a536dd169cbcb6397b0889229d79d35aacff90dfb8d19c";
+  "https://studio.genlayer.com/?import-contract=0x43bD65C68220D08b20793208d50F9F59dEDd7691";
+const deploymentProofUrl =
+  "https://explorer-studio.genlayer.com/tx/0xa5fdaba494a81340088dff6a89a049f6e35f66082af1e8c635c9eebd0ce0636d";
+const initialProofUrl =
+  "https://explorer-studio.genlayer.com/tx/0x2dfceaca3abfb4a7b11906c5dce6d19d40b2b86f69a38297cc183006b417275d";
+const challengeProofUrl =
+  "https://explorer-studio.genlayer.com/tx/0xa7606e15d31ddd6a47b785e737c5f43687c48221db6a753bfb5ada12f794b960";
 
 export default function SourcePage() {
   return (
@@ -68,8 +73,8 @@ export default function SourcePage() {
             Evidence reviewers can inspect.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
-            SourceSeal is a complete GenLayer DApp: a Python Intelligent Contract,
-            decentralized AI-validator consensus, persistent on-chain verdicts,
+            SourceSeal v2 is a complete GenLayer recheck protocol: initial claims,
+            neutral challenges, append-only revisions, evidence-quality scoring,
             and a responsive GenLayerJS interface.
           </p>
         </div>
@@ -81,7 +86,7 @@ export default function SourcePage() {
                 <CheckCircle2 className="size-4" /> Deployed and verified on GenLayer Studionet
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                A five-validator live test finalized with a HIGH-confidence SUPPORTED verdict.
+                The milestone contract adds challenge and canonical-history methods under full consensus.
               </p>
               <code className="mt-3 block break-all text-xs text-slate-500">{contractAddress}</code>
             </div>
@@ -93,7 +98,13 @@ export default function SourcePage() {
                 <a href={studioUrl} target="_blank" rel="noreferrer">Studio <ExternalLink /></a>
               </Button>
               <Button asChild className="bg-lime-300 text-[#0a1712] hover:bg-lime-200">
-                <a href={proofUrl} target="_blank" rel="noreferrer">Finalized proof <ExternalLink /></a>
+                <a href={deploymentProofUrl} target="_blank" rel="noreferrer">Deployment proof <ExternalLink /></a>
+              </Button>
+              <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300 hover:bg-white/5 hover:text-white">
+                <a href={initialProofUrl} target="_blank" rel="noreferrer">Initial verdict <ExternalLink /></a>
+              </Button>
+              <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300 hover:bg-white/5 hover:text-white">
+                <a href={challengeProofUrl} target="_blank" rel="noreferrer">Challenge proof <ExternalLink /></a>
               </Button>
             </div>
           </div>
@@ -123,10 +134,13 @@ export default function SourcePage() {
                 <p className="pl-4 text-slate-500">verdicts: TreeMap[str, str]</p>
                 <p className="mt-2 pl-4"><span className="text-sky-300">@gl.public.write</span></p>
                 <p className="pl-4"><span className="text-fuchsia-300">def</span> <span className="text-lime-200">verify_claim</span>(claim_id, claim, source_urls):</p>
-                <p className="pl-8 text-slate-500"># fetch → reason → validate → seal</p>
+                <p className="pl-8 text-slate-500"># fetch → reason → score → seal</p>
                 <p className="pl-8">result = gl.vm.<span className="text-lime-200">run_nondet_unsafe</span>(</p>
                 <p className="pl-12">analyze_sources, validate_analysis</p>
                 <p className="pl-8">)</p>
+                <p className="mt-3 pl-4"><span className="text-sky-300">@gl.public.write</span></p>
+                <p className="pl-4"><span className="text-fuchsia-300">def</span> <span className="text-fuchsia-200">challenge_claim</span>(revision_id, claim_id, reason, urls):</p>
+                <p className="pl-8 text-slate-500"># compare → re-adjudicate → append revision</p>
               </div>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <Button asChild className="bg-lime-300 text-[#0a1712] hover:bg-lime-200">
@@ -166,9 +180,9 @@ export default function SourcePage() {
 
         <div className="mt-5 grid gap-5 md:grid-cols-3">
           {[
-            [Network, "Consensus", "Leader and validators independently derive the verdict from live evidence."],
-            [ShieldCheck, "Safety", "URL limits and prompt-injection boundaries protect the adjudication flow."],
-            [FileCode2, "Reusable", "The contract exposes simple write and view methods for other GenLayer apps."],
+            [Network, "Re-adjudication", "Leader and validators compare original sources with material counter-evidence."],
+            [ShieldCheck, "Provenance", "SHA-256 fingerprints and linked revisions preserve exactly what changed."],
+            [FileCode2, "Reusable", "Seven public methods expose canonical verdicts and complete challenge histories."],
           ].map(([Icon, title, description]) => {
             const ItemIcon = Icon as typeof Network;
             return (

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SourceSeal — Consensus-backed claim verification",
+  title: "SourceSeal — Consensus-backed recheck protocol",
   description:
-    "Verify public claims against web evidence using decentralized AI-validator consensus on GenLayer.",
+    "Verify public claims, challenge verdicts with counter-evidence, and preserve an append-only consensus history on GenLayer.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
