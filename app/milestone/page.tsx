@@ -18,13 +18,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const acceptedContract = "0xC9425eC2f9899473a3A403550C6241CBC3d5224e";
-const milestoneContract = "0x43bD65C68220D08b20793208d50F9F59dEDd7691";
-const initialProof = "https://explorer-studio.genlayer.com/tx/0x2dfceaca3abfb4a7b11906c5dce6d19d40b2b86f69a38297cc183006b417275d";
+const milestoneContract = "0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
+const initialProof = "https://explorer-studio.genlayer.com/tx/0x065cd048db8dd0e14f10b14298ccde01911e9de5ad6a3a4986793732775bb03e";
 const challengeProof = "https://explorer-studio.genlayer.com/tx/0xa7606e15d31ddd6a47b785e737c5f43687c48221db6a753bfb5ada12f794b960";
+const evidenceHash = "29753ccc2c91b12d0bd9203e0dbe3b6362be147bbde52c021b9706a055fceb97";
 
 const delta = [
   ["Decision model", "One-shot verdict", "Challengeable canonical case file"],
   ["Evidence", "1–3 URLs", "1–5 URLs plus counter-evidence"],
+  ["Source trust", "Advisory quality only", "Hard authority / independence gate"],
+  ["Evidence integrity", "Input fingerprint", "Fetched-body SHA-256 manifest + drift detection"],
   ["Quality signal", "Confidence only", "0–100 quality, diversity, citations, risk flags"],
   ["Provenance", "Claim ID", "SHA-256 fingerprints for claim and every challenge"],
   ["History", "Single stored record", "Append-only linked revisions with latest canonical verdict"],
@@ -33,9 +36,9 @@ const delta = [
 
 const features = [
   [GitCompareArrows, "Neutral re-adjudication", "Validators compare the accepted source set with material counter-evidence before they can uphold or overturn a verdict."],
-  [Fingerprint, "Deterministic provenance", "The exact claim, URL set, challenge reason, and counter-evidence set are anchored with SHA-256 fingerprints."],
+  [Fingerprint, "Auditable evidence bytes", "Every fetched response body is SHA-256 hashed with its URL and byte length, then stored with the verdict."],
   [History, "Append-only revisions", "The initial record is preserved. Every accepted challenge is stored separately and linked to the canonical case file."],
-  [Scale, "Stronger evidence rubric", "Consensus now returns evidence quality, source diversity, exact citations, and risk flags—not just a verdict."],
+  [Scale, "Binding source trust", "A conclusive verdict requires a HIGH-authority primary source or two independent MEDIUM/HIGH publisher groups."],
 ];
 
 export default function MilestonePage() {
@@ -55,11 +58,11 @@ export default function MilestonePage() {
         <div className="max-w-4xl">
           <Badge className="border border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100"><CheckCircle2 /> Builder Milestone · SourceSeal v2</Badge>
           <h1 className="mt-6 text-balance text-4xl font-semibold tracking-[-0.045em] text-white sm:text-6xl">From static verdicts to a <span className="text-gradient">recheck protocol.</span></h1>
-          <p className="mt-5 max-w-3xl text-base leading-7 text-slate-400 sm:text-lg">This milestone adds meaningful contract functionality to the accepted SourceSeal project. Claims can now be challenged with material counter-evidence, re-adjudicated by GenLayer validators, and resolved through a public append-only revision history.</p>
+          <p className="mt-5 max-w-3xl text-base leading-7 text-slate-400 sm:text-lg">This milestone adds meaningful contract functionality to the accepted SourceSeal project. It closes the staff-requested evidence trust boundary, hashes the fetched content behind every verdict, and preserves neutral re-adjudication through a public append-only revision history.</p>
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          {[["4", "new contract methods"], ["100", "quality-score ceiling"], ["∞", "linked rechecks"]].map(([value, label]) => <div key={label} className="rounded-2xl border border-white/8 bg-white/[0.025] p-5"><span className="text-3xl font-semibold text-white">{value}</span><span className="mt-2 block text-xs uppercase tracking-[.16em] text-slate-600">{label}</span></div>)}
+          {[["2/2", "staff requests closed"], ["64", "SHA-256 hex characters"], ["∞", "linked rechecks"]].map(([value, label]) => <div key={label} className="rounded-2xl border border-white/8 bg-white/[0.025] p-5"><span className="text-3xl font-semibold text-white">{value}</span><span className="mt-2 block text-xs uppercase tracking-[.16em] text-slate-600">{label}</span></div>)}
         </div>
 
         <Card className="glass-card mt-8 gap-0 border-white/10 py-0 text-white">
@@ -77,6 +80,14 @@ export default function MilestonePage() {
         <div className="mt-5 grid gap-5 md:grid-cols-2">
           {features.map(([Icon, title, description]) => { const ItemIcon = Icon as typeof ShieldCheck; return <Card key={String(title)} className="glass-card gap-3 border-white/10 px-5 py-5 text-white"><ItemIcon className="size-5 text-fuchsia-300" /><CardTitle className="text-base">{String(title)}</CardTitle><p className="text-sm leading-6 text-slate-500">{String(description)}</p></Card>; })}
         </div>
+
+        <Card className="mt-5 gap-0 border-sky-300/20 bg-sky-300/[0.045] py-0 text-white">
+          <CardHeader className="border-b border-sky-300/10 px-5 py-5 sm:px-6"><CardTitle className="flex items-center gap-2"><ShieldCheck className="size-5 text-sky-300" /> Staff feedback closed and proven</CardTitle></CardHeader>
+          <CardContent className="grid gap-4 px-5 py-5 sm:grid-cols-2 sm:px-6">
+            <div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Source trust gate</span><strong className="mt-2 block text-sm text-lime-200">PASSED · HIGH authority · primary</strong><p className="mt-2 text-xs leading-5 text-slate-500">Official GenLayer documentation was classified as the canonical primary source. A conclusive verdict cannot be stored when the gate fails.</p></div>
+            <div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Fetched content SHA-256</span><code className="mt-2 block break-all text-xs leading-5 text-sky-100">{evidenceHash}</code><p className="mt-2 text-xs leading-5 text-slate-500">Stored with the evidence URL and 226,588-byte response length; later challenges can flag content drift.</p></div>
+          </CardContent>
+        </Card>
 
         <Card className="mt-5 gap-0 border-lime-300/20 bg-lime-300/[0.045] py-0 text-white">
           <CardHeader className="border-b border-lime-300/10 px-5 py-5 sm:px-6"><CardTitle className="flex items-center gap-2"><ShieldCheck className="size-5 text-lime-300" /> Verified full-consensus recheck</CardTitle></CardHeader>
@@ -98,8 +109,8 @@ export default function MilestonePage() {
               <div className="rounded-xl border border-lime-300/15 bg-lime-300/[0.035] p-4"><span className="text-[10px] uppercase tracking-wider text-lime-200/60">Milestone contract</span><code className="mt-2 block break-all text-xs text-lime-100">{deployed ? milestoneContract : "Deployment pending"}</code></div>
               <div className="flex flex-wrap gap-2">
                 {deployed ? <Button asChild className="bg-lime-300 text-[#0a1712] hover:bg-lime-200"><a href={"https://explorer-studio.genlayer.com/address/" + milestoneContract} target="_blank" rel="noreferrer">Milestone contract <ExternalLink /></a></Button> : null}
-                {initialProof ? <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300"><a href={initialProof} target="_blank" rel="noreferrer">Initial verdict <ExternalLink /></a></Button> : null}
-                {challengeProof ? <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300"><a href={challengeProof} target="_blank" rel="noreferrer">Challenge proof <ExternalLink /></a></Button> : null}
+                {initialProof ? <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300"><a href={initialProof} target="_blank" rel="noreferrer">Trust proof <ExternalLink /></a></Button> : null}
+                {challengeProof ? <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300"><a href={challengeProof} target="_blank" rel="noreferrer">Earlier recheck proof <ExternalLink /></a></Button> : null}
               </div>
             </CardContent>
           </Card>

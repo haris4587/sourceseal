@@ -43,6 +43,21 @@ import { Textarea } from "@/components/ui/textarea";
 type Verdict = "SUPPORTED" | "CONTRADICTED" | "INSUFFICIENT_EVIDENCE";
 type Confidence = "HIGH" | "MEDIUM" | "LOW";
 
+type SourceAssessment = {
+  url: string;
+  publisher: string;
+  authority_level: Confidence;
+  is_primary_source: boolean;
+  independence_group: string;
+  reason: string;
+};
+
+type EvidenceContentHash = {
+  url: string;
+  content_sha256: string;
+  content_bytes: number;
+};
+
 type VerificationRecord = {
   claim_id: string;
   claim: string;
@@ -58,6 +73,11 @@ type VerificationRecord = {
   citations: string[];
   risk_flags: string[];
   sources_reviewed: number;
+  source_assessments: SourceAssessment[];
+  authority_summary: string;
+  trust_gate_passed: boolean;
+  independent_source_groups: number;
+  evidence_content_hashes: EvidenceContentHash[];
   submission_fingerprint: string;
   status: string;
   latest_revision_id: string;
@@ -78,6 +98,12 @@ type RevisionRecord = {
   decisive_evidence: string;
   quality_score: number;
   citations: string[];
+  counter_source_assessments: SourceAssessment[];
+  counter_trust_gate_passed: boolean;
+  counter_independent_source_groups: number;
+  original_evidence_content_hashes_at_challenge: EvidenceContentHash[];
+  counter_evidence_content_hashes: EvidenceContentHash[];
+  content_drift_detected: boolean;
   challenge_fingerprint: string;
   challenger: string;
 };
@@ -105,9 +131,9 @@ declare global {
 }
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const DEFAULT_CONTRACT_ADDRESS = "0x43bD65C68220D08b20793208d50F9F59dEDd7691";
+const DEFAULT_CONTRACT_ADDRESS = "0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
 const INITIAL_PROOF_URL =
-  "https://explorer-studio.genlayer.com/tx/0x2dfceaca3abfb4a7b11906c5dce6d19d40b2b86f69a38297cc183006b417275d";
+  "https://explorer-studio.genlayer.com/tx/0x065cd048db8dd0e14f10b14298ccde01911e9de5ad6a3a4986793732775bb03e";
 const CHALLENGE_PROOF_URL =
   "https://explorer-studio.genlayer.com/tx/0xa7606e15d31ddd6a47b785e737c5f43687c48221db6a753bfb5ada12f794b960";
 
@@ -545,6 +571,13 @@ export default function Home() {
               </CardHeader>
               <CardContent className="space-y-4 px-5 py-5">
                 <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Evidence quality</span><span className="mt-2 block text-2xl font-semibold text-white">{record.quality_score}<small className="text-sm text-slate-600">/100</small></span></div><div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Revisions</span><span className="mt-2 block text-2xl font-semibold text-white">{record.revision_count}</span></div></div>
+                <div className={"rounded-xl border p-4 " + (record.trust_gate_passed ? "border-lime-300/20 bg-lime-300/[0.04]" : "border-amber-300/20 bg-amber-300/[0.04]")}>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] uppercase tracking-wider text-slate-600">Source trust gate</span><Badge variant="outline" className={record.trust_gate_passed ? "border-lime-300/25 text-lime-200" : "border-amber-300/25 text-amber-200"}>{record.trust_gate_passed ? "Passed" : "Not passed"}</Badge></div>
+                  <p className="mt-2 text-xs leading-5 text-slate-400">{record.authority_summary || "No authority summary was returned."}</p>
+                  <span className="mt-2 block text-[10px] uppercase tracking-wider text-slate-600">{record.independent_source_groups} trusted publisher group{record.independent_source_groups === 1 ? "" : "s"}</span>
+                </div>
+                {record.source_assessments?.map((source) => <div key={source.url} className="rounded-xl border border-white/8 bg-black/20 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">{source.publisher || "Evidence source"}</span><Badge variant="outline" className="border-sky-300/20 text-sky-200">{source.authority_level}{source.is_primary_source ? " · primary" : ""}</Badge></div><p className="mt-2 text-xs leading-5 text-slate-500">{source.reason}</p><a href={source.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-sky-300 hover:text-sky-200">{source.url}</a></div>)}
+                {record.evidence_content_hashes?.map((item) => <div key={item.url}><span className="mb-2 block text-[10px] uppercase tracking-wider text-slate-600">Evidence body SHA-256 · {item.content_bytes.toLocaleString()} bytes</span><FingerprintValue value={item.content_sha256} /></div>)}
                 <div><span className="mb-2 block text-[10px] uppercase tracking-wider text-slate-600">Submission fingerprint</span><FingerprintValue value={record.submission_fingerprint} /></div>
                 <div><span className="mb-2 block text-[10px] uppercase tracking-wider text-slate-600">Claim ID</span><FingerprintValue value={record.claim_id} /></div>
               </CardContent>
@@ -554,7 +587,7 @@ export default function Home() {
               <CardHeader className="border-b border-white/8 px-5 py-5"><CardTitle className="flex items-center gap-2"><FileClock className="size-5 text-fuchsia-300" /> Append-only decision timeline</CardTitle><CardDescription className="text-slate-500">The accepted baseline and every recheck remain independently inspectable.</CardDescription></CardHeader>
               <CardContent className="space-y-4 px-5 py-5">
                 <div className="timeline-entry relative rounded-xl border border-white/8 bg-black/18 p-4 pl-5"><span className="absolute -left-1 top-5 size-2.5 rounded-full bg-lime-300 shadow-[0_0_14px_#bef264]" /><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">Initial consensus verdict</span><Badge variant="outline" className={verdictClass(record.original_verdict)}>{verdictLabel(record.original_verdict)}</Badge></div><p className="mt-3 text-sm leading-6 text-slate-400">{record.claim}</p></div>
-                {revisions.map((revision) => <div key={revision.revision_id} className="timeline-entry relative rounded-xl border border-fuchsia-300/15 bg-fuchsia-300/[0.035] p-4 pl-5"><span className="absolute -left-1 top-5 size-2.5 rounded-full bg-fuchsia-300 shadow-[0_0_14px_#f0abfc]" /><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">Challenge · {revision.resolution.replaceAll("_", " ")}</span><Badge variant="outline" className={verdictClass(revision.canonical_verdict)}>{verdictLabel(revision.canonical_verdict)}</Badge></div><p className="mt-3 text-sm leading-6 text-slate-300">{revision.rationale}</p><div className="mt-3"><FingerprintValue value={revision.challenge_fingerprint} /></div></div>)}
+                {revisions.map((revision) => <div key={revision.revision_id} className="timeline-entry relative rounded-xl border border-fuchsia-300/15 bg-fuchsia-300/[0.035] p-4 pl-5"><span className="absolute -left-1 top-5 size-2.5 rounded-full bg-fuchsia-300 shadow-[0_0_14px_#f0abfc]" /><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">Challenge · {revision.resolution.replaceAll("_", " ")}</span><Badge variant="outline" className={verdictClass(revision.canonical_verdict)}>{verdictLabel(revision.canonical_verdict)}</Badge></div><p className="mt-3 text-sm leading-6 text-slate-300">{revision.rationale}</p><p className="mt-2 text-xs text-slate-500">Counter-source trust: {revision.counter_trust_gate_passed ? "passed" : "not passed"} · Original content drift: {revision.content_drift_detected ? "detected" : "not detected"}</p><div className="mt-3"><FingerprintValue value={revision.challenge_fingerprint} /></div></div>)}
                 {revisions.length === 0 ? <div className="rounded-xl border border-dashed border-white/10 p-5 text-center text-sm text-slate-600">No accepted challenge has been appended yet.</div> : null}
               </CardContent>
             </Card>
@@ -564,14 +597,14 @@ export default function Home() {
 
       <section className="relative z-10 border-t border-white/8 bg-black/10">
         <div className="mx-auto grid max-w-7xl gap-5 px-5 py-12 sm:px-8 md:grid-cols-3">
-          {[[RefreshCcw, "Re-adjudication", "New counter-evidence is compared against the original sources by independent validators."], [Fingerprint, "Immutable inputs", "Every initial claim and challenge receives a deterministic SHA-256 submission fingerprint."], [Network, "Canonical history", "The latest verdict is easy to query while the complete accepted timeline stays append-only."]].map(([Icon, title, description]) => { const ItemIcon = Icon as typeof RefreshCcw; return <article key={String(title)} className="rounded-2xl border border-white/8 bg-white/[0.02] p-5"><ItemIcon className="size-5 text-lime-300" /><h2 className="mt-4 font-semibold text-white">{String(title)}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{String(description)}</p></article>; })}
+          {[[RefreshCcw, "Re-adjudication", "New counter-evidence is compared against the original sources by independent validators."], [Fingerprint, "Auditable evidence", "Fetched evidence bodies receive persistent SHA-256 hashes and later drift checks."], [Network, "Binding source trust", "Conclusive verdicts require authoritative primary evidence or independent trusted publishers."]].map(([Icon, title, description]) => { const ItemIcon = Icon as typeof RefreshCcw; return <article key={String(title)} className="rounded-2xl border border-white/8 bg-white/[0.02] p-5"><ItemIcon className="size-5 text-lime-300" /><h2 className="mt-4 font-semibold text-white">{String(title)}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{String(description)}</p></article>; })}
         </div>
       </section>
 
       <footer className="relative z-10 border-t border-white/8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <span>SourceSeal Recheck Protocol · Built on GenLayer Studionet</span>
-          <div className="flex flex-wrap gap-4"><a href="/milestone" className="hover:text-lime-200">Milestone delta</a>{INITIAL_PROOF_URL ? <a href={INITIAL_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Initial proof</a> : null}{CHALLENGE_PROOF_URL ? <a href={CHALLENGE_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Challenge proof</a> : null}</div>
+          <div className="flex flex-wrap gap-4"><a href="/milestone" className="hover:text-lime-200">Milestone delta</a>{INITIAL_PROOF_URL ? <a href={INITIAL_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Trust proof</a> : null}{CHALLENGE_PROOF_URL ? <a href={CHALLENGE_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Earlier recheck proof</a> : null}</div>
         </div>
       </footer>
     </main>

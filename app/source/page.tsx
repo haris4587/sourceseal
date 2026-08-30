@@ -25,21 +25,23 @@ const implementationPoints = [
   "Fetches up to five public evidence pages plus counter-evidence inside GenVM",
   "Treats retrieved page content as untrusted input",
   "Uses independent leader and validator analysis for initial and challenged verdicts",
+  "Requires an authoritative primary source or two independent trusted publishers for a conclusive verdict",
+  "Stores a SHA-256 hash and byte length for every fetched evidence body",
   "Scores evidence quality, source diversity, citations, and risk flags",
   "Preserves the initial verdict and every accepted re-adjudication as linked records",
-  "Anchors inputs with deterministic SHA-256 fingerprints",
+  "Detects evidence-content drift when a challenge rechecks the original URLs",
   "Connects the web interface through the official GenLayerJS SDK",
 ];
 
-const contractAddress = "0x43bD65C68220D08b20793208d50F9F59dEDd7691";
+const contractAddress = "0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
 const explorerUrl =
-  "https://explorer-studio.genlayer.com/address/0x43bD65C68220D08b20793208d50F9F59dEDd7691";
+  "https://explorer-studio.genlayer.com/address/0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
 const studioUrl =
-  "https://studio.genlayer.com/?import-contract=0x43bD65C68220D08b20793208d50F9F59dEDd7691";
+  "https://studio.genlayer.com/?import-contract=0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
 const deploymentProofUrl =
-  "https://explorer-studio.genlayer.com/tx/0xa5fdaba494a81340088dff6a89a049f6e35f66082af1e8c635c9eebd0ce0636d";
+  "https://explorer-studio.genlayer.com/tx/0xaa099ce379a187c35338945e6334e6970138af227a55a0234279099d43ef8a09";
 const initialProofUrl =
-  "https://explorer-studio.genlayer.com/tx/0x2dfceaca3abfb4a7b11906c5dce6d19d40b2b86f69a38297cc183006b417275d";
+  "https://explorer-studio.genlayer.com/tx/0x065cd048db8dd0e14f10b14298ccde01911e9de5ad6a3a4986793732775bb03e";
 const challengeProofUrl =
   "https://explorer-studio.genlayer.com/tx/0xa7606e15d31ddd6a47b785e737c5f43687c48221db6a753bfb5ada12f794b960";
 
@@ -86,7 +88,8 @@ export default function SourcePage() {
                 <CheckCircle2 className="size-4" /> Deployed and verified on GenLayer Studionet
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                The milestone contract adds challenge and canonical-history methods under full consensus.
+                The hardened milestone adds a binding source-trust gate, evidence-body hashes,
+                and challengeable canonical history under full consensus.
               </p>
               <code className="mt-3 block break-all text-xs text-slate-500">{contractAddress}</code>
             </div>
@@ -101,7 +104,7 @@ export default function SourcePage() {
                 <a href={deploymentProofUrl} target="_blank" rel="noreferrer">Deployment proof <ExternalLink /></a>
               </Button>
               <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300 hover:bg-white/5 hover:text-white">
-                <a href={initialProofUrl} target="_blank" rel="noreferrer">Initial verdict <ExternalLink /></a>
+                <a href={initialProofUrl} target="_blank" rel="noreferrer">Trust proof <ExternalLink /></a>
               </Button>
               <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300 hover:bg-white/5 hover:text-white">
                 <a href={challengeProofUrl} target="_blank" rel="noreferrer">Challenge proof <ExternalLink /></a>
@@ -134,7 +137,7 @@ export default function SourcePage() {
                 <p className="pl-4 text-slate-500">verdicts: TreeMap[str, str]</p>
                 <p className="mt-2 pl-4"><span className="text-sky-300">@gl.public.write</span></p>
                 <p className="pl-4"><span className="text-fuchsia-300">def</span> <span className="text-lime-200">verify_claim</span>(claim_id, claim, source_urls):</p>
-                <p className="pl-8 text-slate-500"># fetch → reason → score → seal</p>
+                <p className="pl-8 text-slate-500"># fetch → hash → trust gate → reason → seal</p>
                 <p className="pl-8">result = gl.vm.<span className="text-lime-200">run_nondet_unsafe</span>(</p>
                 <p className="pl-12">analyze_sources, validate_analysis</p>
                 <p className="pl-8">)</p>
@@ -181,7 +184,7 @@ export default function SourcePage() {
         <div className="mt-5 grid gap-5 md:grid-cols-3">
           {[
             [Network, "Re-adjudication", "Leader and validators compare original sources with material counter-evidence."],
-            [ShieldCheck, "Provenance", "SHA-256 fingerprints and linked revisions preserve exactly what changed."],
+            [ShieldCheck, "Trust + provenance", "Authority manifests, evidence-body SHA-256 hashes, and linked revisions preserve what was trusted and what changed."],
             [FileCode2, "Reusable", "Seven public methods expose canonical verdicts and complete challenge histories."],
           ].map(([Icon, title, description]) => {
             const ItemIcon = Icon as typeof Network;
