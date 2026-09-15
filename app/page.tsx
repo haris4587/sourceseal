@@ -79,7 +79,14 @@ type VerificationRecord = {
   independent_source_groups: number;
   evidence_content_hashes: EvidenceContentHash[];
   submission_fingerprint: string;
+  source_policy_version: string;
+  source_policy_hash: string;
+  created_at: number;
+  challenge_deadline: number;
   status: string;
+  final_verdict: Verdict | "";
+  finalized_at: number;
+  finalized_by: string;
   latest_revision_id: string;
   revision_count: number;
   submitter: string;
@@ -106,6 +113,17 @@ type RevisionRecord = {
   content_drift_detected: boolean;
   challenge_fingerprint: string;
   challenger: string;
+  challenged_at: number;
+};
+
+type CaseStatus = {
+  claim_id: string;
+  status: string;
+  challenge_deadline: number;
+  seconds_remaining: number;
+  can_challenge: boolean;
+  can_finalize: boolean;
+  final_verdict: Verdict | "";
 };
 
 type Phase =
@@ -207,6 +225,7 @@ export default function Home() {
   const [challengeReason, setChallengeReason] = useState("");
   const [counterUrls, setCounterUrls] = useState("");
   const [inspectClaimId, setInspectClaimId] = useState("");
+  const [finalizeClaimId, setFinalizeClaimId] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
   const contractAddress = DEFAULT_CONTRACT_ADDRESS;
   const [phase, setPhase] = useState<Phase>("idle");
@@ -214,6 +233,7 @@ export default function Home() {
   const [transactionHash, setTransactionHash] = useState("");
   const [record, setRecord] = useState<VerificationRecord | null>(null);
   const [revisions, setRevisions] = useState<RevisionRecord[]>([]);
+  const [caseStatus, setCaseStatus] = useState<CaseStatus | null>(null);
 
   const urls = useMemo(() => parseUrls(sourceUrls), [sourceUrls]);
   const counterEvidence = useMemo(() => parseUrls(counterUrls), [counterUrls]);
@@ -225,6 +245,7 @@ export default function Home() {
     setTransactionHash("");
     setRecord(null);
     setRevisions([]);
+    setCaseStatus(null);
   }
 
   async function connectWallet() {
@@ -255,6 +276,10 @@ export default function Home() {
     return client;
   }
 
+  function getReadClient() {
+    return createClient({ chain: studionet });
+  }
+
   function handleCaught(caught: unknown) {
     const message = caught instanceof Error ? caught.message : "The request failed.";
     setError(
@@ -265,7 +290,7 @@ export default function Home() {
     setPhase("error");
   }
 
-  async function loadRecord(client: Awaited<ReturnType<typeof getConnectedClient>>, claimId: string) {
+  async function loadRecord(client: ReturnType<typeof createClient>, claimId: string) {
     const rawRecord = await client.readContract({
       address: contractAddress as never,
       functionName: "get_verdict",
@@ -289,8 +314,14 @@ export default function Home() {
       });
       if (String(rawRevision)) parsedRevisions.push(JSON.parse(String(rawRevision)) as RevisionRecord);
     }
+    const rawStatus = await client.readContract({
+      address: contractAddress as never,
+      functionName: "get_case_status",
+      args: [claimId],
+    });
     setRecord(parsedRecord);
     setRevisions(parsedRevisions);
+    setCaseStatus(JSON.parse(String(rawStatus)) as CaseStatus);
   }
 
   async function verifyClaim() {
@@ -325,7 +356,7 @@ export default function Home() {
       setPhase("consensus");
       await client.waitForTransactionReceipt({
         hash,
-        status: TransactionStatus.ACCEPTED,
+        status: TransactionStatus.FINALIZED,
         interval: 5_000,
         retries: 80,
       });
@@ -333,6 +364,7 @@ export default function Home() {
       await loadRecord(client, claimId);
       setInspectClaimId(claimId);
       setChallengeClaimId(claimId);
+      setFinalizeClaimId(claimId);
       setPhase("complete");
     } catch (caught) {
       handleCaught(caught);
@@ -385,13 +417,14 @@ export default function Home() {
       setPhase("consensus");
       await client.waitForTransactionReceipt({
         hash,
-        status: TransactionStatus.ACCEPTED,
+        status: TransactionStatus.FINALIZED,
         interval: 5_000,
         retries: 80,
       });
       setPhase("reading");
       await loadRecord(client, challengeClaimId.trim());
       setInspectClaimId(challengeClaimId.trim());
+      setFinalizeClaimId(challengeClaimId.trim());
       setPhase("complete");
     } catch (caught) {
       handleCaught(caught);
@@ -411,9 +444,43 @@ export default function Home() {
       return;
     }
     try {
-      const client = await getConnectedClient();
+      const client = getReadClient();
       setPhase("reading");
       await loadRecord(client, inspectClaimId.trim());
+      setFinalizeClaimId(inspectClaimId.trim());
+      setPhase("complete");
+    } catch (caught) {
+      handleCaught(caught);
+    }
+  }
+
+  async function finalizeClaim() {
+    resetRequestState();
+    if (finalizeClaimId.trim().length < 8) {
+      setError("Enter the claim ID whose challenge window has closed.");
+      setPhase("error");
+      return;
+    }
+    try {
+      const client = await getConnectedClient();
+      setPhase("submitting");
+      const hash = await client.writeContract({
+        address: contractAddress as never,
+        functionName: "finalize_claim",
+        args: [finalizeClaimId.trim()],
+        value: BigInt(0),
+      });
+      setTransactionHash(hash);
+      setPhase("consensus");
+      await client.waitForTransactionReceipt({
+        hash,
+        status: TransactionStatus.FINALIZED,
+        interval: 5_000,
+        retries: 80,
+      });
+      setPhase("reading");
+      await loadRecord(getReadClient(), finalizeClaimId.trim());
+      setInspectClaimId(finalizeClaimId.trim());
       setPhase("complete");
     } catch (caught) {
       handleCaught(caught);
@@ -430,12 +497,12 @@ export default function Home() {
             <span className="brand-seal"><Fingerprint className="size-5" /></span>
             <span>
               <span className="block text-[15px] font-semibold tracking-tight text-white">SourceSeal</span>
-              <span className="block text-[10px] uppercase tracking-[0.22em] text-emerald-200/55">Recheck Protocol</span>
+              <span className="block text-[10px] uppercase tracking-[0.22em] text-emerald-200/55">Finality Protocol</span>
             </span>
           </a>
           <nav className="flex items-center gap-1 sm:gap-2" aria-label="Primary navigation">
             <Badge variant="outline" className="hidden border-fuchsia-300/20 bg-fuchsia-300/5 text-fuchsia-100 sm:inline-flex">
-              <Sparkles className="size-3" /> Milestone v2
+              <Sparkles className="size-3" /> Milestone v3
             </Badge>
             <Button asChild variant="ghost" className="text-slate-300 hover:bg-white/5 hover:text-white">
               <a href="/milestone">Milestone evidence</a>
@@ -453,23 +520,24 @@ export default function Home() {
             <div className="mb-7 max-w-3xl">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <Badge className="border border-lime-300/25 bg-lime-300/10 text-lime-200"><ShieldCheck /> Consensus-backed evidence</Badge>
-                <span className="text-xs text-slate-500">Every correction preserves the original</span>
+                <span className="text-xs text-slate-500">Seven-day challenge window · deterministic finality</span>
               </div>
               <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.045em] text-white sm:text-6xl">
-                Verify once. <span className="text-gradient">Recheck when facts change.</span>
+                Verify. Challenge. <span className="text-gradient">Finalize with proof.</span>
               </h1>
               <p className="mt-5 max-w-2xl text-pretty text-base leading-7 text-slate-400 sm:text-lg">
-                SourceSeal now turns a verdict into a living, append-only case file. New counter-evidence triggers a neutral GenLayer re-adjudication without deleting history.
+                SourceSeal opens a fixed challenge window, accepts independent counter-evidence, and finalizes one canonical verdict while preserving every prior decision.
               </p>
             </div>
 
             <Card className="glass-card gap-0 overflow-hidden border-white/10 py-0 text-white shadow-2xl shadow-black/30">
               <Tabs defaultValue="verify">
                 <CardHeader className="border-b border-white/8 px-4 py-4 sm:px-6">
-                  <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border border-white/8 bg-black/20 p-1">
+                  <TabsList className="grid h-auto w-full grid-cols-4 rounded-xl border border-white/8 bg-black/20 p-1">
                     <TabsTrigger value="verify" className="h-10 rounded-lg text-xs sm:text-sm"><Fingerprint /> Verify</TabsTrigger>
                     <TabsTrigger value="challenge" className="h-10 rounded-lg text-xs sm:text-sm"><GitCompareArrows /> Challenge</TabsTrigger>
                     <TabsTrigger value="inspect" className="h-10 rounded-lg text-xs sm:text-sm"><Search /> Inspect</TabsTrigger>
+                    <TabsTrigger value="finalize" className="h-10 rounded-lg text-xs sm:text-sm"><ShieldCheck /> Finalize</TabsTrigger>
                   </TabsList>
                 </CardHeader>
 
@@ -477,7 +545,7 @@ export default function Home() {
                   <CardContent className="space-y-5 px-5 py-6 sm:px-7">
                     <div>
                       <CardTitle className="text-lg">Open a verifiable claim</CardTitle>
-                      <CardDescription className="mt-1 text-slate-500">Creates the immutable first entry in a challengeable case file.</CardDescription>
+                      <CardDescription className="mt-1 text-slate-500">Creates an immutable case file and opens its seven-day challenge window.</CardDescription>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between"><label htmlFor="claim" className="text-sm font-medium text-slate-200">Claim to verify</label><span className="text-xs tabular-nums text-slate-600">{claim.length}/600</span></div>
@@ -524,6 +592,20 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </TabsContent>
+
+                <TabsContent value="finalize" className="mt-0">
+                  <CardContent className="space-y-5 px-5 py-6 sm:px-7">
+                    <div>
+                      <CardTitle className="text-lg">Finalize an uncontested record</CardTitle>
+                      <CardDescription className="mt-1 text-slate-500">After the fixed deadline, any wallet can seal the canonical verdict. The contract rejects early or repeated finalization.</CardDescription>
+                    </div>
+                    <div className="space-y-2"><label htmlFor="finalize-id" className="text-sm font-medium text-slate-200">Claim ID</label><Input id="finalize-id" value={finalizeClaimId} onChange={(event) => setFinalizeClaimId(event.target.value)} placeholder="ss-…" className="border-white/10 bg-black/20 font-mono text-white shadow-none" /></div>
+                    <Button size="lg" onClick={finalizeClaim} disabled={isWorking} className="h-12 w-full rounded-xl bg-emerald-300 font-semibold text-[#07110f] hover:bg-emerald-200">
+                      {isWorking ? <LoaderCircle className="animate-spin" /> : <ShieldCheck />} Finalize canonical verdict
+                    </Button>
+                    <p className="text-xs leading-5 text-slate-500">Use Inspect first to read the live deadline without connecting a wallet.</p>
+                  </CardContent>
+                </TabsContent>
               </Tabs>
             </Card>
           </div>
@@ -545,7 +627,7 @@ export default function Home() {
                   ))}
                 </div>
                 <Button variant="ghost" onClick={() => connectWallet().catch(handleCaught)} disabled={isWorking} className="w-full justify-start text-slate-400 hover:bg-white/5 hover:text-white">
-                  {walletAddress ? <Check /> : <Wallet />} {walletAddress ? shortAddress(walletAddress) : "Connect wallet"}
+                  {walletAddress ? <Check /> : <Wallet />} {walletAddress ? shortAddress(walletAddress) : "Connect wallet for writes"}
                 </Button>
                 {transactionHash ? <a href={"https://explorer-studio.genlayer.com/tx/" + transactionHash} target="_blank" rel="noreferrer" className="block truncate rounded-lg border border-white/8 bg-black/20 p-3 font-mono text-xs text-slate-400 hover:text-lime-200">{transactionHash}</a> : null}
               </CardContent>
@@ -554,7 +636,7 @@ export default function Home() {
             {error ? <div className="flex gap-3 rounded-xl border border-rose-400/20 bg-rose-400/8 p-4 text-sm leading-6 text-rose-100"><CircleAlert className="mt-0.5 size-4 shrink-0 text-rose-300" /><span>{error}</span></div> : null}
 
             <div className="grid grid-cols-3 gap-3">
-              {[["5", "sources"], ["100", "quality"], ["∞", "rechecks"]].map(([value, label]) => <div key={label} className="rounded-xl border border-white/8 bg-white/[0.025] p-3 text-center"><span className="block text-lg font-semibold text-white">{value}</span><span className="text-[10px] uppercase tracking-wider text-slate-600">{label}</span></div>)}
+              {[["5", "sources"], ["7d", "challenge"], ["10", "rechecks"]].map(([value, label]) => <div key={label} className="rounded-xl border border-white/8 bg-white/[0.025] p-3 text-center"><span className="block text-lg font-semibold text-white">{value}</span><span className="text-[10px] uppercase tracking-wider text-slate-600">{label}</span></div>)}
             </div>
 
             {contractReady ? <div className="grid grid-cols-2 gap-3"><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://explorer-studio.genlayer.com/address/" + contractAddress} target="_blank" rel="noreferrer">Contract <ExternalLink /></a></Button><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://studio.genlayer.com/?import-contract=" + contractAddress} target="_blank" rel="noreferrer">Studio <ExternalLink /></a></Button></div> : <div className="rounded-xl border border-amber-300/15 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100/70">Milestone contract deployment is being connected.</div>}
@@ -571,6 +653,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="space-y-4 px-5 py-5">
                 <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Evidence quality</span><span className="mt-2 block text-2xl font-semibold text-white">{record.quality_score}<small className="text-sm text-slate-600">/100</small></span></div><div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Revisions</span><span className="mt-2 block text-2xl font-semibold text-white">{record.revision_count}</span></div></div>
+                <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] uppercase tracking-wider text-slate-600">Case state</span><Badge variant="outline" className="border-emerald-300/25 text-emerald-200">{record.status.replaceAll("_", " ")}</Badge></div><p className="mt-2 text-xs leading-5 text-slate-400">Challenge deadline: {new Date(record.challenge_deadline * 1000).toLocaleString()} (transaction time)</p>{caseStatus ? <p className="mt-1 text-xs text-slate-500">{caseStatus.can_challenge ? `${Math.ceil(caseStatus.seconds_remaining / 3600)} hours remaining` : caseStatus.can_finalize ? "Ready to finalize" : "Finalized"}</p> : null}</div>
                 <div className={"rounded-xl border p-4 " + (record.trust_gate_passed ? "border-lime-300/20 bg-lime-300/[0.04]" : "border-amber-300/20 bg-amber-300/[0.04]")}>
                   <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] uppercase tracking-wider text-slate-600">Source trust gate</span><Badge variant="outline" className={record.trust_gate_passed ? "border-lime-300/25 text-lime-200" : "border-amber-300/25 text-amber-200"}>{record.trust_gate_passed ? "Passed" : "Not passed"}</Badge></div>
                   <p className="mt-2 text-xs leading-5 text-slate-400">{record.authority_summary || "No authority summary was returned."}</p>
@@ -579,6 +662,7 @@ export default function Home() {
                 {record.source_assessments?.map((source) => <div key={source.url} className="rounded-xl border border-white/8 bg-black/20 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">{source.publisher || "Evidence source"}</span><Badge variant="outline" className="border-sky-300/20 text-sky-200">{source.authority_level}{source.is_primary_source ? " · primary" : ""}</Badge></div><p className="mt-2 text-xs leading-5 text-slate-500">{source.reason}</p><a href={source.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-sky-300 hover:text-sky-200">{source.url}</a></div>)}
                 {record.evidence_content_hashes?.map((item) => <div key={item.url}><span className="mb-2 block text-[10px] uppercase tracking-wider text-slate-600">Evidence body SHA-256 · {item.content_bytes.toLocaleString()} bytes</span><FingerprintValue value={item.content_sha256} /></div>)}
                 <div><span className="mb-2 block text-[10px] uppercase tracking-wider text-slate-600">Submission fingerprint</span><FingerprintValue value={record.submission_fingerprint} /></div>
+                <div><span className="mb-2 block text-[10px] uppercase tracking-wider text-slate-600">Immutable source-policy hash</span><FingerprintValue value={record.source_policy_hash} /></div>
                 <div><span className="mb-2 block text-[10px] uppercase tracking-wider text-slate-600">Claim ID</span><FingerprintValue value={record.claim_id} /></div>
               </CardContent>
             </Card>
@@ -597,13 +681,13 @@ export default function Home() {
 
       <section className="relative z-10 border-t border-white/8 bg-black/10">
         <div className="mx-auto grid max-w-7xl gap-5 px-5 py-12 sm:px-8 md:grid-cols-3">
-          {[[RefreshCcw, "Re-adjudication", "New counter-evidence is compared against the original sources by independent validators."], [Fingerprint, "Auditable evidence", "Fetched evidence bodies receive persistent SHA-256 hashes and later drift checks."], [Network, "Binding source trust", "Conclusive verdicts require authoritative primary evidence or independent trusted publishers."]].map(([Icon, title, description]) => { const ItemIcon = Icon as typeof RefreshCcw; return <article key={String(title)} className="rounded-2xl border border-white/8 bg-white/[0.02] p-5"><ItemIcon className="size-5 text-lime-300" /><h2 className="mt-4 font-semibold text-white">{String(title)}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{String(description)}</p></article>; })}
+          {[[RefreshCcw, "Bounded challenges", "Independent wallets can add counter-evidence only during the immutable seven-day window."], [Fingerprint, "Auditable evidence", "Fetched evidence bodies receive persistent SHA-256 hashes and later drift checks."], [Network, "Deterministic finality", "After the deadline, the canonical validator-agreed verdict is sealed and cannot be challenged again."]].map(([Icon, title, description]) => { const ItemIcon = Icon as typeof RefreshCcw; return <article key={String(title)} className="rounded-2xl border border-white/8 bg-white/[0.02] p-5"><ItemIcon className="size-5 text-lime-300" /><h2 className="mt-4 font-semibold text-white">{String(title)}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{String(description)}</p></article>; })}
         </div>
       </section>
 
       <footer className="relative z-10 border-t border-white/8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <span>SourceSeal Recheck Protocol · Built on GenLayer Studionet</span>
+          <span>SourceSeal Evidence Finality Protocol · Built on GenLayer Studionet</span>
           <div className="flex flex-wrap gap-4"><a href="/milestone" className="hover:text-lime-200">Milestone delta</a>{INITIAL_PROOF_URL ? <a href={INITIAL_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Trust proof</a> : null}{CHALLENGE_PROOF_URL ? <a href={CHALLENGE_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Earlier recheck proof</a> : null}</div>
         </div>
       </footer>

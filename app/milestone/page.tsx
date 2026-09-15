@@ -42,7 +42,7 @@ const features = [
 ];
 
 export default function MilestonePage() {
-  const deployed = milestoneContract !== "0x0000000000000000000000000000000000000000";
+  const deployed = /^0x[a-fA-F0-9]{40}$/.test(milestoneContract);
 
   return (
     <main className="site-shell min-h-screen overflow-hidden">

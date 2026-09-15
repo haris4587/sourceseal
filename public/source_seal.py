@@ -1,8 +1,16 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 from genlayer import *
+from datetime import datetime, timezone
 import hashlib
 import json
+from urllib.parse import urlsplit
+
+
+SOURCE_POLICY_VERSION = "SOURCESEAL_AUTHORITY_V3"
+CHALLENGE_WINDOW_SECONDS = 7 * 24 * 60 * 60
+MAX_EVIDENCE_BYTES = 300_000
+MAX_REVISIONS_PER_CLAIM = 10
 
 
 class SourceSeal(gl.Contract):
@@ -20,6 +28,54 @@ class SourceSeal(gl.Contract):
         self.total_verdicts = u32(0)
         self.total_challenges = u32(0)
 
+    def _now(self) -> int:
+        return int(datetime.now(timezone.utc).timestamp())
+
+    def _source_host(self, url: str) -> str:
+        try:
+            parsed = urlsplit(url)
+            host = (parsed.hostname or "").lower().rstrip(".")
+            port = parsed.port
+        except ValueError:
+            raise gl.vm.UserError("Evidence URL is malformed")
+
+        if parsed.scheme.lower() != "https" or not host:
+            raise gl.vm.UserError("Evidence URLs must begin with https://")
+        if parsed.username is not None or parsed.password is not None:
+            raise gl.vm.UserError("Evidence URLs cannot contain credentials")
+        if parsed.fragment:
+            raise gl.vm.UserError("Evidence URLs cannot contain fragments")
+        if port not in (None, 443):
+            raise gl.vm.UserError("Evidence URLs may only use the HTTPS port")
+        if len(host) > 253:
+            raise gl.vm.UserError("Evidence hostname is too long")
+
+        blocked_names = ("localhost", "metadata.google.internal")
+        if (
+            host in blocked_names
+            or host.endswith(".localhost")
+            or host.endswith(".local")
+            or host.endswith(".internal")
+            or ":" in host
+            or host.isdigit()
+            or host.startswith("0x")
+        ):
+            raise gl.vm.UserError("Private or local network URLs are not allowed")
+
+        parts = host.split(".")
+        if len(parts) == 4 and all(part.isdigit() for part in parts):
+            octets = [int(part) for part in parts]
+            if any(part > 255 for part in octets):
+                raise gl.vm.UserError("Evidence URL contains an invalid IP address")
+            if (
+                octets[0] in (0, 10, 127)
+                or (octets[0] == 169 and octets[1] == 254)
+                or (octets[0] == 172 and 16 <= octets[1] <= 31)
+                or (octets[0] == 192 and octets[1] == 168)
+            ):
+                raise gl.vm.UserError("Private or local network URLs are not allowed")
+        return host
+
     def _parse_urls(self, source_urls: str, minimum: int, maximum: int):
         urls = [url.strip() for url in source_urls.splitlines() if url.strip()]
         if len(urls) < minimum or len(urls) > maximum:
@@ -27,24 +83,21 @@ class SourceSeal(gl.Contract):
                 f"Provide between {minimum} and {maximum} evidence URLs"
             )
 
-        blocked_hosts = (
-            "localhost",
-            "127.0.0.1",
-            "0.0.0.0",
-            "169.254.",
-            "192.168.",
-            "10.0.",
-        )
         seen = []
         for url in urls:
-            lowered = url.lower()
-            if not lowered.startswith("https://"):
-                raise gl.vm.UserError("Evidence URLs must begin with https://")
-            if any(host in lowered for host in blocked_hosts):
-                raise gl.vm.UserError("Private or local network URLs are not allowed")
-            if lowered in seen:
+            if len(url) > 500:
+                raise gl.vm.UserError("Evidence URLs must not exceed 500 characters")
+            host = self._source_host(url)
+            parsed = urlsplit(url)
+            duplicate_key = (
+                host
+                + (":" + str(parsed.port) if parsed.port else "")
+                + (parsed.path or "/")
+                + ("?" + parsed.query if parsed.query else "")
+            )
+            if duplicate_key in seen:
                 raise gl.vm.UserError("Duplicate evidence URLs are not allowed")
-            seen.append(lowered)
+            seen.append(duplicate_key)
         return urls
 
     def _collect_evidence(self, urls, label: str):
@@ -57,6 +110,12 @@ class SourceSeal(gl.Contract):
                     f"Evidence source {index + 1} returned HTTP {response.status}"
                 )
             raw_body = response.body
+            if len(raw_body) == 0:
+                raise gl.vm.UserError(f"Evidence source {index + 1} returned no content")
+            if len(raw_body) > MAX_EVIDENCE_BYTES:
+                raise gl.vm.UserError(
+                    f"Evidence source {index + 1} exceeds the 300 KB limit"
+                )
             page_text = raw_body.decode("utf-8", errors="replace")[:8000]
             content_hashes.append(
                 {
@@ -103,6 +162,8 @@ class SourceSeal(gl.Contract):
 
         assessments = []
         independent_groups = []
+        independent_hosts = []
+        assessed_urls = []
         authoritative_primary_count = 0
         for item in raw_assessments[:5]:
             if not isinstance(item, dict):
@@ -125,18 +186,26 @@ class SourceSeal(gl.Contract):
                 "reason": str(item.get("reason", ""))[:220],
             }
             assessments.append(assessment)
+            if url in assessed_urls:
+                continue
+            assessed_urls.append(url)
 
             if authority_level == "HIGH" and is_primary_source:
                 authoritative_primary_count += 1
+            host = self._source_host(url)
             if (
                 authority_level in ("HIGH", "MEDIUM")
                 and independence_group
                 and independence_group not in independent_groups
+                and host not in independent_hosts
             ):
                 independent_groups.append(independence_group)
+                independent_hosts.append(host)
 
         trust_gate_passed = (
-            authoritative_primary_count >= 1 or len(independent_groups) >= 2
+            len(assessed_urls) == len(urls)
+            and all(url in assessed_urls for url in urls)
+            and (authoritative_primary_count >= 1 or len(independent_groups) >= 2)
         )
         return assessments, trust_gate_passed, len(independent_groups)
 
@@ -151,8 +220,20 @@ class SourceSeal(gl.Contract):
             raise gl.vm.UserError("This claim ID has already been verified")
 
         urls = self._parse_urls(source_urls, 1, 5)
+        created_at = self._now()
+        challenge_deadline = created_at + CHALLENGE_WINDOW_SECONDS
         submission_fingerprint = hashlib.sha256(
             (clean_claim + "\n" + "\n".join(urls)).encode("utf-8")
+        ).hexdigest()
+        source_policy_hash = hashlib.sha256(
+            json.dumps(
+                {
+                    "version": SOURCE_POLICY_VERSION,
+                    "urls": urls,
+                    "rule": "one authoritative primary or two independent trusted publishers",
+                },
+                sort_keys=True,
+            ).encode("utf-8")
         ).hexdigest()
 
         def analyze_sources():
@@ -300,6 +381,8 @@ Return JSON only:
                 "A conclusive verdict requires an authoritative primary source "
                 "or two independent trusted source groups"
             )
+        if result["verdict"] in ("SUPPORTED", "CONTRADICTED") and not citations:
+            raise gl.vm.UserError("A conclusive verdict requires a fetched citation")
 
         evidence_content_hashes = result.get("evidence_content_hashes", [])
         if not self._valid_content_hashes(evidence_content_hashes, urls):
@@ -326,7 +409,14 @@ Return JSON only:
             "independent_source_groups": independent_source_groups,
             "evidence_content_hashes": evidence_content_hashes,
             "submission_fingerprint": submission_fingerprint,
-            "status": "UNCHALLENGED",
+            "source_policy_version": SOURCE_POLICY_VERSION,
+            "source_policy_hash": source_policy_hash,
+            "created_at": created_at,
+            "challenge_deadline": challenge_deadline,
+            "status": "CHALLENGE_WINDOW_OPEN",
+            "final_verdict": "",
+            "finalized_at": 0,
+            "finalized_by": "",
             "latest_revision_id": "",
             "revision_count": 0,
             "submitter": str(gl.message.sender_address),
@@ -354,12 +444,24 @@ Return JSON only:
         if original_raw == "":
             raise gl.vm.UserError("The original claim does not exist")
         original = json.loads(original_raw)
+        now = self._now()
+        if original.get("finalized_at", 0) > 0:
+            raise gl.vm.UserError("This claim is already finalized")
+        if now >= original.get("challenge_deadline", 0):
+            raise gl.vm.UserError("The challenge window has closed")
+        if str(gl.message.sender_address) == original.get("submitter", ""):
+            raise gl.vm.UserError("The original submitter cannot challenge this claim")
 
         clean_reason = challenge_reason.strip()
         if len(clean_reason) < 20 or len(clean_reason) > 700:
             raise gl.vm.UserError("Challenge reason must contain 20 to 700 characters")
         counter_urls = self._parse_urls(counter_source_urls, 1, 5)
         original_urls = original.get("source_urls", [])
+        existing_revision_ids = json.loads(
+            self.revision_ids_by_claim.get(claim_id, "[]")
+        )
+        if len(existing_revision_ids) >= MAX_REVISIONS_PER_CLAIM:
+            raise gl.vm.UserError("This claim has reached its revision limit")
         challenge_fingerprint = hashlib.sha256(
             (
                 claim_id
@@ -543,6 +645,8 @@ Return JSON only:
                 "An overturn requires authoritative primary counter-evidence "
                 "or two independent trusted counter-source groups"
             )
+        if resolution in ("UPHELD", "OVERTURNED") and not citations:
+            raise gl.vm.UserError("A challenge resolution requires a fetched citation")
         if (
             canonical_verdict in ("SUPPORTED", "CONTRADICTED")
             and not original_trust_gate_passed
@@ -599,9 +703,10 @@ Return JSON only:
             "content_drift_detected": content_drift_detected,
             "challenge_fingerprint": challenge_fingerprint,
             "challenger": str(gl.message.sender_address),
+            "challenged_at": now,
         }
 
-        revision_ids = json.loads(self.revision_ids_by_claim.get(claim_id, "[]"))
+        revision_ids = existing_revision_ids
         revision_ids.append(revision_id)
         self.revision_ids_by_claim[claim_id] = json.dumps(revision_ids)
         self.revisions[revision_id] = json.dumps(revision, sort_keys=True)
@@ -615,10 +720,30 @@ Return JSON only:
         original["quality_score"] = quality_score
         original["latest_counter_trust_gate_passed"] = counter_trust_gate_passed
         original["latest_content_drift_detected"] = content_drift_detected
-        original["status"] = "CHALLENGED_" + resolution
+        original["status"] = "CHALLENGE_WINDOW_OPEN"
+        original["latest_resolution"] = resolution
         original["latest_revision_id"] = revision_id
         original["revision_count"] = len(revision_ids)
         self.verdicts[claim_id] = json.dumps(original, sort_keys=True)
+
+    @gl.public.write
+    def finalize_claim(self, claim_id: str) -> None:
+        raw_record = self.verdicts.get(claim_id, "")
+        if raw_record == "":
+            raise gl.vm.UserError("The claim does not exist")
+        record = json.loads(raw_record)
+        if record.get("finalized_at", 0) > 0:
+            raise gl.vm.UserError("This claim is already finalized")
+
+        now = self._now()
+        if now < record.get("challenge_deadline", 0):
+            raise gl.vm.UserError("The challenge window is still open")
+
+        record["status"] = "FINALIZED"
+        record["final_verdict"] = record.get("current_verdict", "")
+        record["finalized_at"] = now
+        record["finalized_by"] = str(gl.message.sender_address)
+        self.verdicts[claim_id] = json.dumps(record, sort_keys=True)
 
     @gl.public.view
     def get_verdict(self, claim_id: str) -> str:
@@ -631,6 +756,28 @@ Return JSON only:
     @gl.public.view
     def get_revision_ids(self, claim_id: str) -> str:
         return self.revision_ids_by_claim.get(claim_id, "[]")
+
+    @gl.public.view
+    def get_case_status(self, claim_id: str) -> str:
+        raw_record = self.verdicts.get(claim_id, "")
+        if raw_record == "":
+            return ""
+        record = json.loads(raw_record)
+        now = self._now()
+        deadline = record.get("challenge_deadline", 0)
+        finalized = record.get("finalized_at", 0) > 0
+        return json.dumps(
+            {
+                "claim_id": claim_id,
+                "status": record.get("status", ""),
+                "challenge_deadline": deadline,
+                "seconds_remaining": max(0, deadline - now),
+                "can_challenge": not finalized and now < deadline,
+                "can_finalize": not finalized and now >= deadline,
+                "final_verdict": record.get("final_verdict", ""),
+            },
+            sort_keys=True,
+        )
 
     @gl.public.view
     def get_recent_ids(self) -> DynArray[str]:
