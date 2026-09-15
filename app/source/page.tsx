@@ -27,23 +27,26 @@ const implementationPoints = [
   "Uses independent leader and validator analysis for initial and challenged verdicts",
   "Requires an authoritative primary source or two independent trusted publishers for a conclusive verdict",
   "Stores a SHA-256 hash and byte length for every fetched evidence body",
+  "Rejects local, private, credential-bearing, fragmented, oversized, and non-HTTPS evidence inputs",
   "Scores evidence quality, source diversity, citations, and risk flags",
-  "Preserves the initial verdict and every accepted re-adjudication as linked records",
+  "Opens a deterministic seven-day challenge window and caps each case at ten revisions",
+  "Prevents the original submitter from challenging their own claim",
+  "Finalizes one canonical verdict after the deadline and rejects late challenges",
   "Detects evidence-content drift when a challenge rechecks the original URLs",
   "Connects the web interface through the official GenLayerJS SDK",
 ];
 
-const contractAddress = "0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
+const contractAddress = "0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
 const explorerUrl =
-  "https://explorer-studio.genlayer.com/address/0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
+  "https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
 const studioUrl =
-  "https://studio.genlayer.com/?import-contract=0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
+  "https://studio.genlayer.com/?import-contract=0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
 const deploymentProofUrl =
-  "https://explorer-studio.genlayer.com/tx/0xaa099ce379a187c35338945e6334e6970138af227a55a0234279099d43ef8a09";
+  "https://explorer-studio.genlayer.com/tx/0x74445031d7711ff6b449f97e37a5a5121d7b0be20637d4fdd16f965a7f1a57e9";
 const initialProofUrl =
-  "https://explorer-studio.genlayer.com/tx/0x065cd048db8dd0e14f10b14298ccde01911e9de5ad6a3a4986793732775bb03e";
+  "https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d";
 const challengeProofUrl =
-  "https://explorer-studio.genlayer.com/tx/0xa7606e15d31ddd6a47b785e737c5f43687c48221db6a753bfb5ada12f794b960";
+  "https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b";
 
 export default function SourcePage() {
   return (
@@ -75,9 +78,9 @@ export default function SourcePage() {
             Evidence reviewers can inspect.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
-            SourceSeal v2 is a complete GenLayer recheck protocol: initial claims,
-            neutral challenges, append-only revisions, evidence-quality scoring,
-            and a responsive GenLayerJS interface.
+            SourceSeal v3 is a bounded GenLayer finality protocol: initial claims,
+            independent challenges, append-only revisions, an immutable deadline,
+            and permissionless finalization through a responsive GenLayerJS interface.
           </p>
         </div>
 
@@ -88,8 +91,8 @@ export default function SourcePage() {
                 <CheckCircle2 className="size-4" /> Deployed and verified on GenLayer Studionet
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                The hardened milestone adds a binding source-trust gate, evidence-body hashes,
-                and challengeable canonical history under full consensus.
+                The finality milestone adds strict URL policy enforcement, a seven-day challenge
+                window, anti-self-challenge rules, bounded revisions, and a final canonical state.
               </p>
               <code className="mt-3 block break-all text-xs text-slate-500">{contractAddress}</code>
             </div>
@@ -144,6 +147,9 @@ export default function SourcePage() {
                 <p className="mt-3 pl-4"><span className="text-sky-300">@gl.public.write</span></p>
                 <p className="pl-4"><span className="text-fuchsia-300">def</span> <span className="text-fuchsia-200">challenge_claim</span>(revision_id, claim_id, reason, urls):</p>
                 <p className="pl-8 text-slate-500"># compare → re-adjudicate → append revision</p>
+                <p className="mt-3 pl-4"><span className="text-sky-300">@gl.public.write</span></p>
+                <p className="pl-4"><span className="text-fuchsia-300">def</span> <span className="text-emerald-200">finalize_claim</span>(claim_id):</p>
+                <p className="pl-8 text-slate-500"># enforce deadline → seal canonical verdict</p>
               </div>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <Button asChild className="bg-lime-300 text-[#0a1712] hover:bg-lime-200">
@@ -185,7 +191,7 @@ export default function SourcePage() {
           {[
             [Network, "Re-adjudication", "Leader and validators compare original sources with material counter-evidence."],
             [ShieldCheck, "Trust + provenance", "Authority manifests, evidence-body SHA-256 hashes, and linked revisions preserve what was trusted and what changed."],
-            [FileCode2, "Reusable", "Seven public methods expose canonical verdicts and complete challenge histories."],
+            [FileCode2, "Reusable", "Eleven public methods expose live case status, canonical verdicts, and complete challenge histories."],
           ].map(([Icon, title, description]) => {
             const ItemIcon = Icon as typeof Network;
             return (

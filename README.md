@@ -1,105 +1,132 @@
-# SourceSeal Recheck Protocol
+# SourceSeal Evidence Finality Protocol
 
 SourceSeal is a consensus-backed claim verifier built on GenLayer. The accepted
-version produced one persistent verdict from public web evidence. This milestone
-turns that verdict into a challengeable, append-only case file and closes the
-evidence trust-boundary issues identified in the acceptance review.
+project already supported authoritative-source checks, evidence-body hashing,
+and append-only re-adjudication. Milestone v3 completes the lifecycle with a
+fixed challenge window and deterministic finalization.
 
-Live app: https://sourceseal.ansaf1st33.chatgpt.site
+Published app (v2 until the original ChatGPT Sites account republishes v3):
+https://sourceseal.ansaf1st33.chatgpt.site
 
-## Hardened milestone deployment
+## Milestone v3 deployment
 
-- Contract: `0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e`
-- Explorer: https://explorer-studio.genlayer.com/address/0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e
-- Deployment transaction: https://explorer-studio.genlayer.com/tx/0xaa099ce379a187c35338945e6334e6970138af227a55a0234279099d43ef8a09
-- Authoritative-source proof: https://explorer-studio.genlayer.com/tx/0x065cd048db8dd0e14f10b14298ccde01911e9de5ad6a3a4986793732775bb03e
-- Earlier finalized recheck proof: https://explorer-studio.genlayer.com/tx/0xa7606e15d31ddd6a47b785e737c5f43687c48221db6a753bfb5ada12f794b960
-- Milestone evidence: https://sourceseal.ansaf1st33.chatgpt.site/milestone
+- Contract: `0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6`
+- Explorer: https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6
+- Deployment transaction: https://explorer-studio.genlayer.com/tx/0x74445031d7711ff6b449f97e37a5a5121d7b0be20637d4fdd16f965a7f1a57e9
+- Full-consensus verification: https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d
+- Independent challenge: https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b
+- Early-finalization guard: https://explorer-studio.genlayer.com/tx/0x859ba4a8f3eaf9a60828be0b9862ef2b91876e1aac207b20484a84499f56c5fc
+- Milestone evidence page (available after republish):
+  https://sourceseal.ansaf1st33.chatgpt.site/milestone
 
 Accepted baseline contract:
 `0xC9425eC2f9899473a3A403550C6241CBC3d5224e`
 
-## Staff feedback closed
+Previous hardened milestone contract:
+`0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e`
 
-The accepted project review requested two specific improvements.
+## What v3 adds
 
-1. **Independent or authoritative source validation.** A conclusive
-   `SUPPORTED` or `CONTRADICTED` verdict now requires either one `HIGH`-authority
-   primary source or two independent `MEDIUM`/`HIGH` publisher groups. The
-   contract stores every source assessment and rejects a conclusive result when
-   the trust gate fails.
-2. **Evidence-content hashes.** SourceSeal now hashes the fetched response body
-   for every URL with SHA-256 and stores the URL, byte length, and digest with
-   the verdict. Challenges re-fetch original evidence and record whether the
-   content changed.
-
-The full-consensus proof used claim ID `sourceseal-trust-2026-003` and the
-official GenLayer Optimistic Democracy documentation. The resulting record is
-`SUPPORTED` with `trust_gate_passed: true`, a `HIGH`/primary GenLayer source
-assessment, and this stored evidence-body hash:
-
-`29753ccc2c91b12d0bd9203e0dbe3b6362be147bbde52c021b9706a055fceb97`
-
-## Meaningful delta from the accepted project
-
-| Area | Accepted SourceSeal | Hardened milestone |
+| Area | Previous milestone | Milestone v3 |
 | --- | --- | --- |
-| Decision model | One-shot verdict | Challengeable canonical case file |
-| Evidence | 1–3 URLs | 1–5 URLs plus counter-evidence |
-| Source trust | No binding authority requirement | Hard primary-authority / independence gate |
-| Evidence integrity | Claim ID only | SHA-256 of every fetched evidence body plus drift detection |
-| Quality signal | Confidence only | 0–100 quality, diversity, citations, risk flags, authority assessments |
-| History | Single record | Append-only linked revisions and canonical latest verdict |
-| Contract API | `verify_claim` and 3 views | `challenge_claim` and 7 total public methods |
+| Lifecycle | Challengeable record with no closing state | Seven-day challenge window and permissionless finalization |
+| Participants | Submitter could recheck their own record | Original submitter cannot challenge their own claim |
+| Evidence ingress | Public HTTPS URL validation | Blocks credentials, fragments, non-443 ports, local/private hosts, duplicates, oversized URLs, empty bodies, and responses over 300 KB |
+| Challenge bounds | Unbounded append-only revisions | Maximum ten revisions per claim |
+| Policy provenance | Stored authority assessment | `SOURCESEAL_AUTHORITY_V3` plus an immutable source-policy hash |
+| Read access | Wallet-oriented interface | Walletless claim, revision, and deadline inspection |
+| Final state | Latest canonical verdict | Immutable `FINALIZED` record with verdict, time, and finalizer |
+| Public API | Seven methods | Eleven methods including `get_case_status` and `finalize_claim` |
+| Delivery | Manual checks | GitHub CI for TypeScript, lint, production build, UI tests, and Python syntax |
 
-## Why GenLayer is central
+## Live consensus evidence
 
-The protocol requires capabilities ordinary deterministic smart contracts do
-not have:
+The live v3 proof uses claim ID `sourceseal-finality-2026-001`:
 
-- live public-web retrieval inside GenVM;
-- LLM reasoning over unstructured original and counter-evidence;
-- independent validator review;
-- semantic consensus before a verdict or revision is accepted; and
-- queryable, persistent claim, trust, hash, and challenge records.
+> GenLayer Intelligent Contracts can access deterministic transaction time
+> through the transaction context.
+
+The contract fetched the official GenLayer transaction-context documentation
+and produced a `SUPPORTED` result through validator consensus with:
+
+- confidence `HIGH`;
+- quality score `95`;
+- `trust_gate_passed: true`;
+- source policy version `SOURCESEAL_AUTHORITY_V3`;
+- evidence body size `273,516` bytes;
+- evidence SHA-256
+  `59fc391d06c73439e97ebd4f56dfae9edc9b2669b21fdc613a82750e0adec7ac`;
+- source-policy SHA-256
+  `1587c6046cefd339333d9ac94353adce166c1dc6fef8b0c1b71e9eb8f1dee8a9`;
+- submission fingerprint
+  `2609b08f8ea729d1c797d832f0a4a49843e467c3d17347e2e202d9fb9d7e49f9`;
+- deterministic challenge deadline `1790105895`; and
+- initial state `CHALLENGE_WINDOW_OPEN`.
+
+A different Studio wallet (`0xdD4c…83fc`) submitted revision
+`sourceseal-finality-recheck-001`. Validators returned `UPHELD`, preserved the
+canonical `SUPPORTED` verdict, scored the recheck `94`, and stored challenge
+fingerprint
+`511253fbc6b639c3fd34d3e0e42882e1b8e950ae7d03d040a8279f1d2aa734e9`.
+Because the official documentation is dynamically rendered, the recheck also
+demonstrated evidence-body drift detection.
+
+The early-finalization transaction reached consensus but made no state change:
+`get_case_status` still returned `can_finalize: false`, an empty final verdict,
+and `CHALLENGE_WINDOW_OPEN`. This proves the on-chain deadline guard, rather
+than relying on a disabled UI button.
 
 ## Contract workflow
 
 ### Initial verification
 
-1. Validate the claim and 1–5 HTTPS evidence URLs.
-2. Fingerprint the exact claim and URL set with SHA-256.
-3. Fetch every page and hash its response body inside the non-deterministic
-   GenVM block.
-4. Classify each publisher, authority level, primary-source status, and
-   independence group.
-5. Enforce the trust gate before allowing a conclusive verdict.
-6. Store the verdict, authority manifest, evidence-content hashes, quality
-   score, citations, and risk flags.
+1. Validate the claim and one to five public HTTPS evidence URLs.
+2. Apply strict URL and response-size policy before model execution.
+3. Fingerprint the claim, URL set, and versioned trust rule with SHA-256.
+4. Fetch and hash every evidence body inside GenVM.
+5. Require one authoritative primary source or two independent trusted
+   publisher groups for a conclusive verdict.
+6. Store the record with deterministic creation and challenge-deadline times.
 
 ### Challenge and re-adjudication
 
-1. Reference an existing claim ID.
-2. Add a challenge reason and 1–5 counter-evidence URLs.
-3. Re-fetch the original and new evidence and preserve new body hashes.
-4. Detect whether original evidence content drifted after the first verdict.
-5. Require trusted counter-evidence before an `OVERTURNED` resolution.
-6. Preserve the initial record, append the revision, and update the canonical
-   latest verdict.
+1. Require a different wallet from the original submitter.
+2. Accept challenges only before the stored deadline and below the ten-revision
+   cap.
+3. Re-fetch original and counter-evidence, retaining fresh hashes and content
+   drift status.
+4. Preserve every linked revision and update only the canonical current view.
 
-## Reviewable source
+### Finalization
 
-- `contracts/source_seal.py` — hardened milestone Intelligent Contract
-- `tests/direct/test_source_seal.py` — trust-gate, hashing, challenge, and URL-safety tests
-- `app/page.tsx` — Verify / Challenge / Inspect GenLayerJS interface
-- `app/milestone/page.tsx` — public before/after milestone evidence
-- `public/evidence/` — controlled historical recheck fixtures
+1. Expose the live deadline and eligibility through `get_case_status`.
+2. Reject finalization before the seven-day window closes.
+3. After the deadline, seal the current verdict as `final_verdict` and store the
+   deterministic finalization time and caller.
+4. Reject subsequent challenges and repeated finalization.
 
-## Earlier verified recheck
+## Why GenLayer is central
 
-The earlier v2 full-consensus flow used claim ID `sourceseal-live-2026-001` and
-revision ID `sourceseal-revision-2026-001`. An initial
-`INSUFFICIENT_EVIDENCE` record was later challenged and finalized as
-`OVERTURNED`, producing the canonical verdict `CONTRADICTED` while preserving
-the original record. That proof demonstrates append-only re-adjudication; the
-new deployment above adds the binding trust gate and evidence-body hashes.
+SourceSeal depends on live web retrieval inside GenVM, LLM reasoning over
+unstructured evidence, independent validator review, semantic consensus, and
+persistent on-chain case history. An ordinary deterministic smart contract
+cannot perform that evidence adjudication by itself.
+
+## Reviewable source and verification
+
+- `contracts/source_seal.py` — milestone v3 Intelligent Contract
+- `tests/direct/test_source_seal.py` — trust, URL safety, challenge, deadline,
+  and finalization tests
+- `app/page.tsx` — Verify / Challenge / Inspect / Finalize GenLayerJS interface
+- `app/milestone/page.tsx` — public delta and deployment evidence
+- `.github/workflows/ci.yml` — repeatable project verification
+
+Local checks:
+
+```bash
+npm ci
+npx tsc --noEmit
+npm run lint
+npm test
+python -m py_compile contracts/source_seal.py tests/direct/test_source_seal.py
+```

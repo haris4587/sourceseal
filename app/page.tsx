@@ -149,11 +149,13 @@ declare global {
 }
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const DEFAULT_CONTRACT_ADDRESS = "0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
+const DEFAULT_CONTRACT_ADDRESS = "0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
 const INITIAL_PROOF_URL =
-  "https://explorer-studio.genlayer.com/tx/0x065cd048db8dd0e14f10b14298ccde01911e9de5ad6a3a4986793732775bb03e";
+  "https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d";
 const CHALLENGE_PROOF_URL =
-  "https://explorer-studio.genlayer.com/tx/0xa7606e15d31ddd6a47b785e737c5f43687c48221db6a753bfb5ada12f794b960";
+  "https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b";
+const FINALITY_GUARD_PROOF_URL =
+  "https://explorer-studio.genlayer.com/tx/0x859ba4a8f3eaf9a60828be0b9862ef2b91876e1aac207b20484a84499f56c5fc";
 
 const phaseProgress: Record<Phase, number> = {
   idle: 0,
@@ -321,7 +323,9 @@ export default function Home() {
     });
     setRecord(parsedRecord);
     setRevisions(parsedRevisions);
-    setCaseStatus(JSON.parse(String(rawStatus)) as CaseStatus);
+    const parsedStatus = JSON.parse(String(rawStatus)) as CaseStatus;
+    setCaseStatus(parsedStatus);
+    return { record: parsedRecord, revisions: parsedRevisions, status: parsedStatus };
   }
 
   async function verifyClaim() {
@@ -361,7 +365,10 @@ export default function Home() {
         retries: 80,
       });
       setPhase("reading");
-      await loadRecord(client, claimId);
+      const loaded = await loadRecord(client, claimId);
+      if (loaded.record.claim_id !== claimId) {
+        throw new Error("The finalized transaction did not create the expected claim record.");
+      }
       setInspectClaimId(claimId);
       setChallengeClaimId(claimId);
       setFinalizeClaimId(claimId);
@@ -422,7 +429,10 @@ export default function Home() {
         retries: 80,
       });
       setPhase("reading");
-      await loadRecord(client, challengeClaimId.trim());
+      const loaded = await loadRecord(client, challengeClaimId.trim());
+      if (!loaded.revisions.some((revision) => revision.revision_id === revisionId)) {
+        throw new Error("The finalized transaction did not append the expected challenge revision.");
+      }
       setInspectClaimId(challengeClaimId.trim());
       setFinalizeClaimId(challengeClaimId.trim());
       setPhase("complete");
@@ -479,7 +489,10 @@ export default function Home() {
         retries: 80,
       });
       setPhase("reading");
-      await loadRecord(getReadClient(), finalizeClaimId.trim());
+      const loaded = await loadRecord(getReadClient(), finalizeClaimId.trim());
+      if (loaded.status.status !== "FINALIZED") {
+        throw new Error("The contract kept the challenge window open. Inspect the live deadline and try again after it closes.");
+      }
       setInspectClaimId(finalizeClaimId.trim());
       setPhase("complete");
     } catch (caught) {
@@ -688,7 +701,7 @@ export default function Home() {
       <footer className="relative z-10 border-t border-white/8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <span>SourceSeal Evidence Finality Protocol · Built on GenLayer Studionet</span>
-          <div className="flex flex-wrap gap-4"><a href="/milestone" className="hover:text-lime-200">Milestone delta</a>{INITIAL_PROOF_URL ? <a href={INITIAL_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Trust proof</a> : null}{CHALLENGE_PROOF_URL ? <a href={CHALLENGE_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Earlier recheck proof</a> : null}</div>
+          <div className="flex flex-wrap gap-4"><a href="/milestone" className="hover:text-lime-200">Milestone delta</a><a href={INITIAL_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Verification proof</a><a href={CHALLENGE_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Challenge proof</a><a href={FINALITY_GUARD_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Finality guard</a></div>
         </div>
       </footer>
     </main>
