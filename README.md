@@ -5,7 +5,10 @@ project already supported authoritative-source checks, evidence-body hashing,
 and append-only re-adjudication. Milestone v3 completes the lifecycle with a
 fixed challenge window and deterministic finalization.
 
-Published app (v2 until the original ChatGPT Sites account republishes v3):
+Production app (milestone v3):
+https://sourceseal.netlify.app
+
+Historical ChatGPT Sites deployment (accepted-project v2):
 https://sourceseal.ansaf1st33.chatgpt.site
 
 ## Milestone v3 deployment
@@ -16,8 +19,8 @@ https://sourceseal.ansaf1st33.chatgpt.site
 - Full-consensus verification: https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d
 - Independent challenge: https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b
 - Early-finalization guard: https://explorer-studio.genlayer.com/tx/0x859ba4a8f3eaf9a60828be0b9862ef2b91876e1aac207b20484a84499f56c5fc
-- Milestone evidence page (available after republish):
-  https://sourceseal.ansaf1st33.chatgpt.site/milestone
+- Milestone evidence page: https://sourceseal.netlify.app/milestone
+- Published contract source: https://sourceseal.netlify.app/source
 
 Accepted baseline contract:
 `0xC9425eC2f9899473a3A403550C6241CBC3d5224e`
