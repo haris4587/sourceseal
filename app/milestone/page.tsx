@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const acceptedContract = "0xC9425eC2f9899473a3A403550C6241CBC3d5224e";
 const previousMilestoneContract = "0x3ce1bd5ba7CEDAabd60CB1f7276f4B0a6e89c70e";
-const milestoneContract = "0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
+const milestoneContract = "0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2";
 const deploymentProof = "https://explorer-studio.genlayer.com/tx/0x74445031d7711ff6b449f97e37a5a5121d7b0be20637d4fdd16f965a7f1a57e9";
 const initialProof = "https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d";
 const challengeProof = "https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b";
@@ -112,7 +112,7 @@ export default function MilestonePage() {
               <div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Accepted baseline / previous milestone</span><code className="mt-2 block break-all text-xs text-slate-500">{acceptedContract}</code><code className="mt-2 block break-all text-xs text-slate-400">{previousMilestoneContract}</code></div>
               <div className="rounded-xl border border-lime-300/15 bg-lime-300/[0.035] p-4"><span className="text-[10px] uppercase tracking-wider text-lime-200/60">Milestone contract</span><code className="mt-2 block break-all text-xs text-lime-100">{deployed ? milestoneContract : "Deployment pending"}</code></div>
               <div className="flex flex-wrap gap-2">
-                {deployed ? <Button asChild className="bg-lime-300 text-[#0a1712] hover:bg-lime-200"><a href={"https://explorer-studio.genlayer.com/address/" + milestoneContract} target="_blank" rel="noreferrer">Milestone contract <ExternalLink /></a></Button> : null}
+                {deployed ? <Button asChild className="bg-lime-300 text-[#0a1712] hover:bg-lime-200"><a href={"https://explorer-studio-dev.genlayer.com/address/" + milestoneContract} target="_blank" rel="noreferrer">Studio Next contract <ExternalLink /></a></Button> : null}
                 <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300"><a href={deploymentProof} target="_blank" rel="noreferrer">Deployment <ExternalLink /></a></Button>
                 <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300"><a href={initialProof} target="_blank" rel="noreferrer">Verification <ExternalLink /></a></Button>
                 <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300"><a href={challengeProof} target="_blank" rel="noreferrer">Challenge <ExternalLink /></a></Button>
