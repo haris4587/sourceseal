@@ -36,11 +36,11 @@ const implementationPoints = [
   "Connects the web interface through the official GenLayerJS SDK",
 ];
 
-const contractAddress = "0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2";
+const contractAddress = "0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
 const explorerUrl =
-  "https://explorer-studio-dev.genlayer.com/address/0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2";
+  "https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
 const studioUrl =
-  "https://studio.genlayer.com/?import-contract=0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2";
+  "https://studio.genlayer.com/?import-contract=0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
 const deploymentProofUrl =
   "https://explorer-studio.genlayer.com/tx/0x74445031d7711ff6b449f97e37a5a5121d7b0be20637d4fdd16f965a7f1a57e9";
 const initialProofUrl =
@@ -88,7 +88,7 @@ export default function SourcePage() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-lime-200">
-                <CheckCircle2 className="size-4" /> Deployed on GenLayer Studio Next
+                <CheckCircle2 className="size-4" /> Deployed and verified on GenLayer Studionet
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 The finality milestone adds strict URL policy enforcement, a seven-day challenge

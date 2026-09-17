@@ -11,25 +11,22 @@ https://sourceseal.netlify.app
 Historical ChatGPT Sites deployment (accepted-project v2):
 https://sourceseal.ansaf1st33.chatgpt.site
 
-## Studio Next deployment
+## Milestone v3 deployment
 
-- Contract: `0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2`
-- Explorer: https://explorer-studio-dev.genlayer.com/address/0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2
-- Network: Studio Next (chain ID 61997)
-
-## Historical milestone v3 proof
-
-The transactions below belong to the previous Studionet v3 deployment and are
-retained as historical evidence:
-
-- Previous v3 contract: `0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6`
-- Previous explorer: https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6
+- Contract: `0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6`
+- Explorer: https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6
 - Deployment transaction: https://explorer-studio.genlayer.com/tx/0x74445031d7711ff6b449f97e37a5a5121d7b0be20637d4fdd16f965a7f1a57e9
 - Full-consensus verification: https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d
 - Independent challenge: https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b
 - Early-finalization guard: https://explorer-studio.genlayer.com/tx/0x859ba4a8f3eaf9a60828be0b9862ef2b91876e1aac207b20484a84499f56c5fc
 - Milestone evidence page: https://sourceseal.netlify.app/milestone
 - Published contract source: https://sourceseal.netlify.app/source
+
+## Additional Studio Dev contract
+
+- Contract: `0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2`
+- Explorer: https://explorer-studio-dev.genlayer.com/address/0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2
+- This is an additional Studio Dev contract reference. It does **not** replace the Milestone v3 deployment above.
 
 Accepted baseline contract:
 `0xC9425eC2f9899473a3A403550C6241CBC3d5224e`
@@ -44,7 +41,7 @@ Previous hardened milestone contract:
 | Lifecycle | Challengeable record with no closing state | Seven-day challenge window and permissionless finalization |
 | Participants | Submitter could recheck their own record | Original submitter cannot challenge their own claim |
 | Evidence ingress | Public HTTPS URL validation | Blocks credentials, fragments, non-443 ports, local/private hosts, duplicates, oversized URLs, empty bodies, and responses over 300 KB |
-| Challenge bounds | Unbounded append-only revisions | Maximum ten revisions per claim |
+| Challenge bounds | Unbounded linked rechecks | Maximum ten revisions per claim |
 | Policy provenance | Stored authority assessment | `SOURCESEAL_AUTHORITY_V3` plus an immutable source-policy hash |
 | Read access | Wallet-oriented interface | Walletless claim, revision, and deadline inspection |
 | Final state | Latest canonical verdict | Immutable `FINALIZED` record with verdict, time, and finalizer |
