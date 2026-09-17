@@ -149,7 +149,7 @@ declare global {
 }
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const DEFAULT_CONTRACT_ADDRESS = "0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
+const DEFAULT_CONTRACT_ADDRESS = "0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2";
 const INITIAL_PROOF_URL =
   "https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d";
 const CHALLENGE_PROOF_URL =
@@ -642,7 +642,7 @@ export default function Home() {
                 <Button variant="ghost" onClick={() => connectWallet().catch(handleCaught)} disabled={isWorking} className="w-full justify-start text-slate-400 hover:bg-white/5 hover:text-white">
                   {walletAddress ? <Check /> : <Wallet />} {walletAddress ? shortAddress(walletAddress) : "Connect wallet for writes"}
                 </Button>
-                {transactionHash ? <a href={"https://explorer-studio.genlayer.com/tx/" + transactionHash} target="_blank" rel="noreferrer" className="block truncate rounded-lg border border-white/8 bg-black/20 p-3 font-mono text-xs text-slate-400 hover:text-lime-200">{transactionHash}</a> : null}
+                {transactionHash ? <a href={"https://explorer-studio-dev.genlayer.com/tx/" + transactionHash} target="_blank" rel="noreferrer" className="block truncate rounded-lg border border-white/8 bg-black/20 p-3 font-mono text-xs text-slate-400 hover:text-lime-200">{transactionHash}</a> : null}
               </CardContent>
             </Card>
 
@@ -652,7 +652,7 @@ export default function Home() {
               {[["5", "sources"], ["7d", "challenge"], ["10", "rechecks"]].map(([value, label]) => <div key={label} className="rounded-xl border border-white/8 bg-white/[0.025] p-3 text-center"><span className="block text-lg font-semibold text-white">{value}</span><span className="text-[10px] uppercase tracking-wider text-slate-600">{label}</span></div>)}
             </div>
 
-            {contractReady ? <div className="grid grid-cols-2 gap-3"><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://explorer-studio.genlayer.com/address/" + contractAddress} target="_blank" rel="noreferrer">Contract <ExternalLink /></a></Button><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://studio.genlayer.com/?import-contract=" + contractAddress} target="_blank" rel="noreferrer">Studio <ExternalLink /></a></Button></div> : <div className="rounded-xl border border-amber-300/15 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100/70">Milestone contract deployment is being connected.</div>}
+            {contractReady ? <div className="grid grid-cols-2 gap-3"><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://explorer-studio-dev.genlayer.com/address/" + contractAddress} target="_blank" rel="noreferrer">Contract <ExternalLink /></a></Button><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://studio.genlayer.com/?import-contract=" + contractAddress} target="_blank" rel="noreferrer">Studio <ExternalLink /></a></Button></div> : <div className="rounded-xl border border-amber-300/15 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100/70">Milestone contract deployment is being connected.</div>}
           </aside>
         </div>
 
