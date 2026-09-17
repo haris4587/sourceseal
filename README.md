@@ -11,10 +11,19 @@ https://sourceseal.netlify.app
 Historical ChatGPT Sites deployment (accepted-project v2):
 https://sourceseal.ansaf1st33.chatgpt.site
 
-## Milestone v3 deployment
+## Studio Next deployment
 
-- Contract: `0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6`
-- Explorer: https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6
+- Contract: `0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2`
+- Explorer: https://explorer-studio-dev.genlayer.com/address/0xAEaFfe2543d72AdBcbeAff51BFd60400E2C4B6d2
+- Network: Studio Next (chain ID 61997)
+
+## Historical milestone v3 proof
+
+The transactions below belong to the previous Studionet v3 deployment and are
+retained as historical evidence:
+
+- Previous v3 contract: `0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6`
+- Previous explorer: https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6
 - Deployment transaction: https://explorer-studio.genlayer.com/tx/0x74445031d7711ff6b449f97e37a5a5121d7b0be20637d4fdd16f965a7f1a57e9
 - Full-consensus verification: https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d
 - Independent challenge: https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b
