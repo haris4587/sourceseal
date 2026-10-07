@@ -1,0 +1,125 @@
+{
+  "case_status": {
+    "can_challenge": true,
+    "can_finalize": false,
+    "challenge_deadline": 1791953836,
+    "claim_id": "sourceseal-v1-stable-20261007",
+    "final_verdict": "",
+    "seconds_remaining": 601938,
+    "status": "CHALLENGE_WINDOW_OPEN"
+  },
+  "original_record": {
+    "authority_summary": "rfc-editor.org is the canonical authoritative source for IETF RFCs, qualifying as a primary source, which satisfies the trust policy for a SUPPORTED verdict.",
+    "challenge_deadline": 1791953836,
+    "citations": [
+      "https://www.rfc-editor.org/rfc/rfc8259.txt"
+    ],
+    "claim": "RFC 8259 specifies the JavaScript Object Notation (JSON) data interchange format.",
+    "claim_id": "sourceseal-v1-stable-20261007",
+    "created_at": 1791349036,
+    "current_confidence": "HIGH",
+    "current_verdict": "SUPPORTED",
+    "evidence_content_hashes": [
+      {
+        "content_bytes": 28360,
+        "content_sha256": "61a5378f4255c720beb2a4b4a63b29540147c140f36988bf086291989b4cd2d7",
+        "url": "https://www.rfc-editor.org/rfc/rfc8259.txt"
+      }
+    ],
+    "final_verdict": "",
+    "finalized_at": 0,
+    "finalized_by": "",
+    "independent_source_groups": 1,
+    "key_evidence": "RFC 8259 title: 'The JavaScript Object Notation (JSON) Data Interchange Format'; Abstract states JSON is 'a lightweight, text-based, language-independent data interchange format.'",
+    "latest_revision_id": "",
+    "original_confidence": "HIGH",
+    "original_verdict": "SUPPORTED",
+    "quality_score": 95,
+    "revision_count": 0,
+    "risk_flags": [
+      "Single source, but it is the authoritative primary document"
+    ],
+    "source_assessments": [
+      {
+        "authority_level": "HIGH",
+        "independence_group": "IETF RFC Editor",
+        "is_primary_source": true,
+        "publisher": "IETF / RFC Editor",
+        "reason": "Official canonical publication of RFC 8259, the definitive primary source for its own content.",
+        "url": "https://www.rfc-editor.org/rfc/rfc8259.txt"
+      }
+    ],
+    "source_diversity": "LOW",
+    "source_policy_hash": "59c25d2143a681b175acdff24222892790c1151d1ee5ecf7bd6545d123ffb43a",
+    "source_policy_version": "SOURCESEAL_AUTHORITY_V3",
+    "source_urls": [
+      "https://www.rfc-editor.org/rfc/rfc8259.txt"
+    ],
+    "sources_reviewed": 1,
+    "status": "CHALLENGE_WINDOW_OPEN",
+    "submission_fingerprint": "896c90ce3756d448b89388f514225035b4cd23e1f2b1beec6533da7f83e6c428",
+    "submitter": "0x21d517598532d9793409791Bc94a72367ee73F69",
+    "summary": "RFC 8259, published by the IETF in December 2017, is titled 'The JavaScript Object Notation (JSON) Data Interchange Format' and specifies JSON as a text-based, language-independent data interchange format.",
+    "trust_gate_passed": true
+  },
+  "record": {
+    "authority_summary": "rfc-editor.org is the canonical authoritative source for IETF RFCs, qualifying as a primary source, which satisfies the trust policy for a SUPPORTED verdict.",
+    "challenge_deadline": 1791953836,
+    "citations": [
+      "https://www.rfc-editor.org/rfc/rfc8259.txt"
+    ],
+    "claim": "RFC 8259 specifies the JavaScript Object Notation (JSON) data interchange format.",
+    "claim_id": "sourceseal-v1-stable-20261007",
+    "created_at": 1791349036,
+    "current_confidence": "HIGH",
+    "current_verdict": "SUPPORTED",
+    "evidence_content_hashes": [
+      {
+        "content_bytes": 28360,
+        "content_sha256": "61a5378f4255c720beb2a4b4a63b29540147c140f36988bf086291989b4cd2d7",
+        "url": "https://www.rfc-editor.org/rfc/rfc8259.txt"
+      }
+    ],
+    "final_verdict": "",
+    "finalized_at": 0,
+    "finalized_by": "",
+    "independent_source_groups": 1,
+    "key_evidence": "RFC 8259 title: 'The JavaScript Object Notation (JSON) Data Interchange Format'; Abstract states JSON is 'a lightweight, text-based, language-independent data interchange format.'",
+    "latest_revision_id": "",
+    "original_confidence": "HIGH",
+    "original_verdict": "SUPPORTED",
+    "quality_score": 95,
+    "revision_count": 0,
+    "risk_flags": [
+      "Single source, but it is the authoritative primary document"
+    ],
+    "source_assessments": [
+      {
+        "authority_level": "HIGH",
+        "independence_group": "IETF RFC Editor",
+        "is_primary_source": true,
+        "publisher": "IETF / RFC Editor",
+        "reason": "Official canonical publication of RFC 8259, the definitive primary source for its own content.",
+        "url": "https://www.rfc-editor.org/rfc/rfc8259.txt"
+      }
+    ],
+    "source_diversity": "LOW",
+    "source_policy_hash": "59c25d2143a681b175acdff24222892790c1151d1ee5ecf7bd6545d123ffb43a",
+    "source_policy_version": "SOURCESEAL_AUTHORITY_V3",
+    "source_urls": [
+      "https://www.rfc-editor.org/rfc/rfc8259.txt"
+    ],
+    "sources_reviewed": 1,
+    "status": "CHALLENGE_WINDOW_OPEN",
+    "submission_fingerprint": "896c90ce3756d448b89388f514225035b4cd23e1f2b1beec6533da7f83e6c428",
+    "submitter": "0x21d517598532d9793409791Bc94a72367ee73F69",
+    "summary": "RFC 8259, published by the IETF in December 2017, is titled 'The JavaScript Object Notation (JSON) Data Interchange Format' and specifies JSON as a text-based, language-independent data interchange format.",
+    "trust_gate_passed": true
+  },
+  "revisions": [],
+  "schema": "sourceseal.review.v1",
+  "chain_id": 61999,
+  "contract_address": "0xaf5Df783aCA48743f13A2B60576FAb07241325f3",
+  "rpc": "https://studio.genlayer.com/api",
+  "retrieved_at": "2026-10-07T05:44:59.214Z"
+}

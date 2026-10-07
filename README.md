@@ -61,23 +61,33 @@ to survive a network reset. Old records remain on their original deployments,
 not migrated into these new contracts. Historical references are archived in
 [docs/legacy-deployments.md](docs/legacy-deployments.md).
 
-## Website status
+## Published website
 
-The original site is https://sourceseal.netlify.app and the old account is no
-longer accessible to the owner. Replacement project `sourceseal-v1` was created
-in the connected new Netlify team. Publication is **pending**: available Netlify
-connector operations do not expose build/upload/trigger-deploy, and no signed-in
-browser session or CLI deploy credential is available. Do not present
-`sourceseal-v1.netlify.app` as live until a ready deployment is verified.
+- Website: https://sourceseal-v1.netlify.app/
+- Milestone evidence: https://sourceseal-v1.netlify.app/milestone
+- Source: https://sourceseal-v1.netlify.app/source
+
+The replacement project is in the owner's new Netlify team. Production deploy
+`6ac5dbb84322623c0b55c80d` is ready and published (manual upload, October 7, 2026).
+It replaces the old account's website for this update. The current deployment
+is not linked to GitHub for automatic builds; future changes need another upload
+or a repository connection.
+
+The hosted browser test loaded finalized records on both networks without a
+wallet, exported JSON with the correct chain/contract, and displayed the Dev
+UPHELD challenge alongside the unchanged first decision. Exported receipts are
+saved in `docs/evidence/hosted-*-review.json`. The copy-link action reported
+success; the review URL initializes Inspect with its network and claim.
+The reported browser-wallet warning remains unverified; no external wallet was
+connected or warning bypassed.
 
 The build uses the existing `netlify.toml`: `npm run netlify:build`, publish
-folder `out`. Upload the contents of `out` to the replacement project, or link
-this repository to that project with those build settings. Routes include `/`,
-`/milestone`, `/source`, and both downloadable contract sources.
+folder `out`. Routes include `/`, `/milestone`, `/source`, and both downloadable
+contract sources.
 
 ## Reproduce the reviewer flow
 
-1. Open the published replacement app after deployment. Select Studionet or
+1. Open https://sourceseal-v1.netlify.app/. Select Studionet or
    Studio Dev / Next.
 2. Choose Inspect → Use live review example → Load on-chain history. No wallet
    is required. The example is `sourceseal-v1-stable-20261007` or
