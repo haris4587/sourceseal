@@ -6,11 +6,11 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "prebuild": "cp contracts/source_seal.py public/source_seal.py",
+    "prebuild": "cp contracts/source_seal.py public/source_seal.py && cp contracts/source_seal_dev.py public/source_seal_dev.py",
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build": "bash scripts/build-verified.sh",
-    "netlify:build": "cp contracts/source_seal.py public/source_seal.py && next build",
+    "netlify:build": "cp contracts/source_seal.py public/source_seal.py && cp contracts/source_seal_dev.py public/source_seal_dev.py && next build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
@@ -27,6 +27,7 @@
     "drizzle-orm": "0.45.2",
     "embla-carousel-react": "^8.6.0",
     "genlayer-js": "^1.1.8",
+    "genlayer-js-dev": "npm:genlayer-js@2.0.0-rc.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.31.0",
     "next": "16.2.6",

@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/card";
 
 const implementationPoints = [
+  "Preserves the complete first decision separately from the mutable canonical record",
+  "Returns a deterministic review bundle for walletless sharing and JSON export",
   "Fetches up to five public evidence pages plus counter-evidence inside GenVM",
   "Treats retrieved page content as untrusted input",
   "Uses independent leader and validator analysis for initial and challenged verdicts",
@@ -36,15 +38,15 @@ const implementationPoints = [
   "Connects the web interface through the official GenLayerJS SDK",
 ];
 
-const contractAddress = "0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
+const contractAddress = "0xaf5Df783aCA48743f13A2B60576FAb07241325f3";
 const explorerUrl =
-  "https://explorer-studio.genlayer.com/address/0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
+  "https://explorer-studio.genlayer.com/address/0xaf5Df783aCA48743f13A2B60576FAb07241325f3";
 const studioUrl =
-  "https://studio.genlayer.com/?import-contract=0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
+  "https://studio.genlayer.com/?import-contract=0xaf5Df783aCA48743f13A2B60576FAb07241325f3";
 const deploymentProofUrl =
-  "https://explorer-studio.genlayer.com/tx/0x74445031d7711ff6b449f97e37a5a5121d7b0be20637d4fdd16f965a7f1a57e9";
+  "https://explorer-studio.genlayer.com/tx/0xf36c1bd8ba01dad57a9712ccfbb7f017602d9dbcf6d37638cf3f237f25e203c1";
 const initialProofUrl =
-  "https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d";
+  "https://explorer-studio.genlayer.com/tx/0x84040db5e330800be77be6a6b864151979b25924434ae63f6a49fa044d680737";
 const challengeProofUrl =
   "https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b";
 
@@ -78,7 +80,7 @@ export default function SourcePage() {
             Evidence reviewers can inspect.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
-            SourceSeal v3 is a bounded GenLayer finality protocol: initial claims,
+            SourceSeal milestone v1 is a bounded GenLayer finality protocol: initial claims,
             independent challenges, append-only revisions, an immutable deadline,
             and permissionless finalization through a responsive GenLayerJS interface.
           </p>
@@ -110,7 +112,7 @@ export default function SourcePage() {
                 <a href={initialProofUrl} target="_blank" rel="noreferrer">Trust proof <ExternalLink /></a>
               </Button>
               <Button asChild variant="outline" className="border-white/10 bg-black/15 text-slate-300 hover:bg-white/5 hover:text-white">
-                <a href={challengeProofUrl} target="_blank" rel="noreferrer">Challenge proof <ExternalLink /></a>
+                <a href={challengeProofUrl} target="_blank" rel="noreferrer">Historical challenge proof <ExternalLink /></a>
               </Button>
             </div>
           </div>

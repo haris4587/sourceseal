@@ -17,6 +17,7 @@ class SourceSeal(gl.Contract):
     """Consensus-backed claims with append-only challenge and re-adjudication."""
 
     verdicts: TreeMap[str, str]
+    initial_records: TreeMap[str, str]
     revisions: TreeMap[str, str]
     revision_ids_by_claim: TreeMap[str, str]
     verdict_ids: DynArray[str]
@@ -91,7 +92,7 @@ class SourceSeal(gl.Contract):
             parsed = urlsplit(url)
             duplicate_key = (
                 host
-                + (":" + str(parsed.port) if parsed.port else "")
+                + ("" if parsed.port in (None, 443) else ":" + str(parsed.port))
                 + (parsed.path or "/")
                 + ("?" + parsed.query if parsed.query else "")
             )
@@ -105,7 +106,7 @@ class SourceSeal(gl.Contract):
         content_hashes = []
         for index, url in enumerate(urls):
             response = gl.nondet.web.get(url)
-            if response.status >= 400:
+            if response.status < 200 or response.status >= 300:
                 raise gl.vm.UserError(
                     f"Evidence source {index + 1} returned HTTP {response.status}"
                 )
@@ -151,7 +152,9 @@ class SourceSeal(gl.Contract):
                 or len(digest) != 64
                 or any(char not in "0123456789abcdef" for char in digest)
                 or not isinstance(size, int)
+                or isinstance(size, bool)
                 or size <= 0
+                or size > MAX_EVIDENCE_BYTES
             ):
                 return False
         return True
@@ -423,6 +426,7 @@ Return JSON only:
         }
 
         self.verdicts[claim_id] = json.dumps(record, sort_keys=True)
+        self.initial_records[claim_id] = self.verdicts[claim_id]
         self.revision_ids_by_claim[claim_id] = "[]"
         self.verdict_ids.append(claim_id)
         self.total_verdicts = u32(self.total_verdicts + 1)
@@ -756,6 +760,26 @@ Return JSON only:
     @gl.public.view
     def get_revision_ids(self, claim_id: str) -> str:
         return self.revision_ids_by_claim.get(claim_id, "[]")
+
+    @gl.public.view
+    def get_review_bundle(self, claim_id: str) -> str:
+        """One deterministic read for a portable, network-scoped review receipt.
+
+        Contains stored records only: no new web or model calls. Consumers must
+        bind this snapshot to the actual chain and contract they queried.
+        """
+        raw_record = self.verdicts.get(claim_id, "")
+        if raw_record == "":
+            return ""
+        revision_ids = json.loads(self.revision_ids_by_claim.get(claim_id, "[]"))
+        history = [json.loads(self.revisions[revision_id]) for revision_id in revision_ids]
+        return json.dumps({
+            "schema": "sourceseal.review.v1",
+            "record": json.loads(raw_record),
+            "original_record": json.loads(self.initial_records[claim_id]),
+            "revisions": history,
+            "case_status": json.loads(self.get_case_status(claim_id)),
+        }, sort_keys=True)
 
     @gl.public.view
     def get_case_status(self, claim_id: str) -> str:

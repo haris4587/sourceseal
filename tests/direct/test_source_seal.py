@@ -160,12 +160,20 @@ def test_challenge_can_overturn_and_preserve_revision(
     assert revision["canonical_verdict"] == "CONTRADICTED"
     assert revision["counter_trust_gate_passed"] is True
     assert revision["content_drift_detected"] is False
-    assert revision["challenger"] == str(direct_bob)
+    assert revision["challenger"].lower() == "0x" + direct_bob.hex()
     assert len(revision["counter_evidence_content_hashes"][0]["content_sha256"]) == 64
     assert json.loads(contract.get_revision_ids("claim-test-002")) == [
         "revision-test-001"
     ]
     assert contract.get_total_challenges() == 1
+    bundle = json.loads(contract.get_review_bundle("claim-test-002"))
+    assert bundle["record"] == verdict
+    assert bundle["original_record"]["summary"] == "The supplied sources directly confirm the approval."
+    assert bundle["original_record"]["current_verdict"] == "SUPPORTED"
+    assert bundle["original_record"]["quality_score"] == 88
+    assert bundle["original_record"]["revision_count"] == 0
+    assert bundle["revisions"] == [revision]
+    assert bundle["case_status"]["can_challenge"] is True
 
 
 def test_rejects_insecure_and_duplicate_urls(
@@ -343,9 +351,43 @@ def test_deadline_closes_challenges_and_enables_finalization(
     status = json.loads(contract.get_case_status("claim-test-010"))
     assert verdict["status"] == "FINALIZED"
     assert verdict["final_verdict"] == "SUPPORTED"
-    assert verdict["finalized_by"] == str(direct_bob)
+    assert verdict["finalized_by"].lower() == "0x" + direct_bob.hex()
+
     assert status["can_challenge"] is False
     assert status["can_finalize"] is False
 
     with direct_vm.expect_revert("This claim is already finalized"):
         contract.finalize_claim("claim-test-010")
+
+
+def test_review_bundle_and_http_guards(direct_vm, direct_deploy, direct_alice):
+    contract = direct_deploy("contracts/source_seal.py")
+    assert contract.get_review_bundle("missing-claim") == ""
+    direct_vm.sender = direct_alice
+    direct_vm.mock_web(r"https://example\.com/evidence", {"status": 200, "body": "Council approved the solar project."})
+    mock_initial_verdict(direct_vm)
+    contract.verify_claim("review-bundle-001", "The city council approved the solar project.", "https://example.com/evidence")
+    before = contract.get_verdict("review-bundle-001")
+    bundle = json.loads(contract.get_review_bundle("review-bundle-001"))
+    assert bundle["schema"] == "sourceseal.review.v1"
+    assert bundle["record"] == json.loads(before)
+    assert bundle["revisions"] == []
+    assert bundle["case_status"]["can_challenge"] is True
+    assert contract.get_verdict("review-bundle-001") == before
+    direct_vm.mock_web(r"https://example\.com/redirect", {"status": 302, "body": "redirect placeholder"})
+    with direct_vm.expect_revert("Evidence source 1 returned HTTP 302"):
+        contract.verify_claim("review-redirect-001", "The city council approved the solar project.", "https://example.com/redirect")
+    assert contract.get_total_verdicts() == 1
+
+
+def test_default_https_port_is_duplicate(direct_vm, direct_deploy):
+    contract = direct_deploy("contracts/source_seal.py")
+    with direct_vm.expect_revert("Duplicate evidence URLs are not allowed"):
+        contract.verify_claim("duplicate-port-001", "The city council approved the solar project.", "https://example.com/evidence\nhttps://EXAMPLE.com:443/evidence")
+
+
+def test_manifest_rejects_oversize_and_boolean(direct_deploy):
+    contract = direct_deploy("contracts/source_seal.py")
+    url = "https://example.com/evidence"
+    for size in (True, 300001, 0, -1):
+        assert contract._valid_content_hashes([{"url": url, "content_sha256": "a"*64, "content_bytes": size}], [url]) is False

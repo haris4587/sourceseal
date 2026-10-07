@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -22,9 +22,11 @@ import {
   Sparkles,
   Wallet,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
-import { TransactionStatus } from "genlayer-js/types";
+import { deployments } from "@/lib/deployments";
+import { TransactionStatus, TransactionHashVariant } from "genlayer-js/types";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -149,13 +151,7 @@ declare global {
 }
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const DEFAULT_CONTRACT_ADDRESS = "0x94dc4ecE268F2791cbDDa7ad339DAe67443193a6";
-const INITIAL_PROOF_URL =
-  "https://explorer-studio.genlayer.com/tx/0xb72eff22922880448c052c3441fe32d289b49beeaa5d4ba3cd50d6c904a4625d";
-const CHALLENGE_PROOF_URL =
-  "https://explorer-studio.genlayer.com/tx/0x61764efefe5adadd0bafbad04946e569dd908c566e4130494dd0f08aae63b27b";
-const FINALITY_GUARD_PROOF_URL =
-  "https://explorer-studio.genlayer.com/tx/0x859ba4a8f3eaf9a60828be0b9862ef2b91876e1aac207b20484a84499f56c5fc";
+
 
 const phaseProgress: Record<Phase, number> = {
   idle: 0,
@@ -220,16 +216,25 @@ function FingerprintValue({ value }: { value: string }) {
   );
 }
 
-export default function Home() {
+function SourceSealApp() {
+  const searchParams = useSearchParams();
+  const candidate = searchParams.get("claim") || "";
+  const sharedClaim = /^[a-zA-Z0-9_-]{8,80}$/.test(candidate) ? candidate : "";
+  const [activeTab, setActiveTab] = useState(sharedClaim ? "inspect" : "verify");
+  const [originalRecord, setOriginalRecord] = useState<VerificationRecord | null>(null);
+  const [reviewBundle, setReviewBundle] = useState<object | null>(null);
+  const [notice, setNotice] = useState("");
   const [claim, setClaim] = useState("");
   const [sourceUrls, setSourceUrls] = useState("");
   const [challengeClaimId, setChallengeClaimId] = useState("");
   const [challengeReason, setChallengeReason] = useState("");
   const [counterUrls, setCounterUrls] = useState("");
-  const [inspectClaimId, setInspectClaimId] = useState("");
+  const [inspectClaimId, setInspectClaimId] = useState(sharedClaim);
   const [finalizeClaimId, setFinalizeClaimId] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
-  const contractAddress = DEFAULT_CONTRACT_ADDRESS;
+  const [network, setNetwork] = useState<"stable" | "dev">(searchParams.get("network") === "dev" ? "dev" : "stable");
+  const deployment = deployments[network];
+  const contractAddress = deployment.address;
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState("");
   const [transactionHash, setTransactionHash] = useState("");
@@ -244,6 +249,9 @@ export default function Home() {
 
   function resetRequestState() {
     setError("");
+    setNotice("");
+    setReviewBundle(null);
+    setOriginalRecord(null);
     setTransactionHash("");
     setRecord(null);
     setRevisions([]);
@@ -251,10 +259,11 @@ export default function Home() {
   }
 
   async function connectWallet() {
+    if (network === "dev") throw new Error("Use Studio Dev’s built-in test account for writes. Reads and exports here need no wallet.");
     const provider = window.ethereum;
     if (!provider) {
       throw new Error(
-        "No compatible wallet was found. Open SourceSeal in MetaMask or install a browser wallet.",
+        "No browser wallet is available. You can inspect and export without one, or use the linked GenLayer Studio with its built-in test account for writes.",
       );
     }
     setPhase("wallet");
@@ -265,9 +274,8 @@ export default function Home() {
   }
 
   async function getConnectedClient() {
-    const wallet = walletAddress
-      ? { address: walletAddress, provider: window.ethereum }
-      : await connectWallet();
+    if (network === "dev") throw new Error("Open Studio Dev with its built-in account to submit this write.");
+    const wallet = await connectWallet();
     if (!wallet.provider) throw new Error("Wallet connection was lost.");
     const client = createClient({
       chain: studionet,
@@ -279,7 +287,17 @@ export default function Home() {
   }
 
   function getReadClient() {
-    return createClient({ chain: studionet });
+    return {
+      async readContract(args: { address: `0x${string}`; functionName: string; args: string[] }) {
+        if (network === "dev") {
+          const [{ createClient: createDevClient }, { studioDevnet }, { TransactionHashVariant: DevVariant }] = await Promise.all([
+            import("genlayer-js-dev"), import("genlayer-js-dev/chains"), import("genlayer-js-dev/types"),
+          ]);
+          return createDevClient({ chain: studioDevnet }).readContract({ ...args, transactionHashVariant: DevVariant.LATEST_FINAL });
+        }
+        return createClient({ chain: studionet }).readContract({ ...args, transactionHashVariant: TransactionHashVariant.LATEST_FINAL });
+      },
+    };
   }
 
   function handleCaught(caught: unknown) {
@@ -292,35 +310,22 @@ export default function Home() {
     setPhase("error");
   }
 
-  async function loadRecord(client: ReturnType<typeof createClient>, claimId: string) {
-    const rawRecord = await client.readContract({
+  async function loadRecord(client: ReturnType<typeof getReadClient>, claimId: string) {
+    const rawBundle = await client.readContract({
       address: contractAddress as never,
-      functionName: "get_verdict",
+      functionName: "get_review_bundle",
       args: [claimId],
     });
-    if (!String(rawRecord)) throw new Error("No SourceSeal record was found for this claim ID.");
-    const parsedRecord = JSON.parse(String(rawRecord)) as VerificationRecord;
-
-    const rawIds = await client.readContract({
-      address: contractAddress as never,
-      functionName: "get_revision_ids",
-      args: [claimId],
-    });
-    const revisionIds = JSON.parse(String(rawIds || "[]")) as string[];
-    const parsedRevisions: RevisionRecord[] = [];
-    for (const revisionId of revisionIds) {
-      const rawRevision = await client.readContract({
-        address: contractAddress as never,
-        functionName: "get_revision",
-        args: [revisionId],
-      });
-      if (String(rawRevision)) parsedRevisions.push(JSON.parse(String(rawRevision)) as RevisionRecord);
-    }
-    const rawStatus = await client.readContract({
-      address: contractAddress as never,
-      functionName: "get_case_status",
-      args: [claimId],
-    });
+    if (!rawBundle) throw new Error("No record was found. Check the claim ID and network.");
+    const bundle = JSON.parse(String(rawBundle)) as {
+      record: VerificationRecord; original_record: VerificationRecord; revisions: RevisionRecord[]; case_status: CaseStatus;
+    };
+    const parsedRecord = bundle.record;
+    setOriginalRecord(bundle.original_record);
+    const parsedRevisions = bundle.revisions;
+    const rawStatus = JSON.stringify(bundle.case_status);
+    setReviewBundle({ ...bundle, chain_id: deployment.chainId, contract_address: contractAddress,
+      rpc: deployment.rpc, retrieved_at: new Date().toISOString() });
     setRecord(parsedRecord);
     setRevisions(parsedRevisions);
     const parsedStatus = JSON.parse(String(rawStatus)) as CaseStatus;
@@ -365,7 +370,7 @@ export default function Home() {
         retries: 80,
       });
       setPhase("reading");
-      const loaded = await loadRecord(client, claimId);
+      const loaded = await loadRecord(getReadClient(), claimId);
       if (loaded.record.claim_id !== claimId) {
         throw new Error("The finalized transaction did not create the expected claim record.");
       }
@@ -406,7 +411,11 @@ export default function Home() {
     }
 
     try {
+      const preview = await loadRecord(getReadClient(), challengeClaimId.trim());
+      if (!preview.status.can_challenge) throw new Error("This case is closed to challenges. Inspect its deadline and history.");
       const client = await getConnectedClient();
+      if (preview.record.submitter.toLowerCase() === client.account?.address.toLowerCase())
+        throw new Error("Use a different account from the original submitter to challenge this case.");
       const revisionId = await makeId("rev", challengeClaimId + challengeReason + counterUrls);
       setPhase("submitting");
       const hash = await client.writeContract({
@@ -429,7 +438,7 @@ export default function Home() {
         retries: 80,
       });
       setPhase("reading");
-      const loaded = await loadRecord(client, challengeClaimId.trim());
+      const loaded = await loadRecord(getReadClient(), challengeClaimId.trim());
       if (!loaded.revisions.some((revision) => revision.revision_id === revisionId)) {
         throw new Error("The finalized transaction did not append the expected challenge revision.");
       }
@@ -472,6 +481,9 @@ export default function Home() {
       return;
     }
     try {
+      const preview = await loadRecord(getReadClient(), finalizeClaimId.trim());
+      if (!preview.status.can_finalize) throw new Error(preview.status.final_verdict
+        ? "This case is already finalized." : "The seven-day challenge window is still open. Inspect the deadline first.");
       const client = await getConnectedClient();
       setPhase("submitting");
       const hash = await client.writeContract({
@@ -500,6 +512,27 @@ export default function Home() {
     }
   }
 
+  function exportReceipt() {
+    if (!reviewBundle || !record) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(reviewBundle, null, 2)], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "sourceseal-review-" + record.claim_id.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function shareRecord() {
+    if (!record) return;
+    try {
+      const url = new URL(window.location.origin);
+      url.searchParams.set("claim", record.claim_id);
+      url.searchParams.set("network", network);
+      await navigator.clipboard.writeText(url.href);
+      setNotice("Review link copied. Recipients can load it without a wallet.");
+    } catch { setNotice("Copy the claim ID below and share it with the website URL."); }
+  }
+
   return (
     <main className="site-shell min-h-screen overflow-hidden">
       <div className="ambient-grid" aria-hidden="true" />
@@ -515,7 +548,7 @@ export default function Home() {
           </a>
           <nav className="flex items-center gap-1 sm:gap-2" aria-label="Primary navigation">
             <Badge variant="outline" className="hidden border-fuchsia-300/20 bg-fuchsia-300/5 text-fuchsia-100 sm:inline-flex">
-              <Sparkles className="size-3" /> Milestone v3
+              <Sparkles className="size-3" /> Milestone v1
             </Badge>
             <Button asChild variant="ghost" className="text-slate-300 hover:bg-white/5 hover:text-white">
               <a href="/milestone">Milestone evidence</a>
@@ -543,8 +576,20 @@ export default function Home() {
               </p>
             </div>
 
+            <div className="mb-5 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+              <label htmlFor="review-network">Network</label>
+              <select id="review-network" value={network} disabled={isWorking} onChange={(event) => { setNetwork(event.target.value as "stable" | "dev"); resetRequestState(); setWalletAddress(""); }} className="rounded-lg border border-white/15 bg-[#10221b] p-2">
+                <option value="stable">Studionet · 61999</option><option value="dev">Studio Dev / Next · 61997</option>
+              </select>
+              <Button asChild variant="outline"><a href={deployment.studio + "/?import-contract=" + contractAddress} target="_blank" rel="noreferrer">Use Studio test account <ExternalLink /></a></Button>
+            </div>
+            <div className="mb-5 rounded-xl border border-sky-300/20 bg-sky-300/5 p-4 text-sm leading-6 text-slate-300">
+              <strong className="text-white">What is this useful for?</strong> Review a product announcement, check a public project claim, or track a correction. A verdict reflects the supplied evidence and can be challenged; it is not a guarantee of truth.
+              <p className="mt-2">1. Verify a claim → 2. Inspect and share → 3. Challenge with new evidence → 4. Finalize after seven days.</p>
+              <p className="mt-2">No wallet is needed to read or export. For test writes, open GenLayer Studio and use its built-in account. If a wallet or browser flags a site, stop and report the warning.</p>
+            </div>
             <Card className="glass-card gap-0 overflow-hidden border-white/10 py-0 text-white shadow-2xl shadow-black/30">
-              <Tabs defaultValue="verify">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <CardHeader className="border-b border-white/8 px-4 py-4 sm:px-6">
                   <TabsList className="grid h-auto w-full grid-cols-4 rounded-xl border border-white/8 bg-black/20 p-1">
                     <TabsTrigger value="verify" className="h-10 rounded-lg text-xs sm:text-sm"><Fingerprint /> Verify</TabsTrigger>
@@ -558,7 +603,7 @@ export default function Home() {
                   <CardContent className="space-y-5 px-5 py-6 sm:px-7">
                     <div>
                       <CardTitle className="text-lg">Open a verifiable claim</CardTitle>
-                      <CardDescription className="mt-1 text-slate-500">Creates an immutable case file and opens its seven-day challenge window.</CardDescription>
+                      <CardDescription className="mt-1 text-slate-500">Submit a factual statement with public sources. Validators assess it; others have seven days to challenge the result.</CardDescription>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between"><label htmlFor="claim" className="text-sm font-medium text-slate-200">Claim to verify</label><span className="text-xs tabular-nums text-slate-600">{claim.length}/600</span></div>
@@ -579,7 +624,7 @@ export default function Home() {
                   <CardContent className="space-y-5 px-5 py-6 sm:px-7">
                     <div>
                       <CardTitle className="text-lg">Challenge with material evidence</CardTitle>
-                      <CardDescription className="mt-1 text-slate-500">Re-adjudicates the full record and appends a linked revision.</CardDescription>
+                      <CardDescription className="mt-1 text-slate-500">Disagree with a verdict? Use a different account and explain what new evidence changes. The first decision remains in the history.</CardDescription>
                     </div>
                     <div className="space-y-2"><label htmlFor="challenge-id" className="text-sm font-medium text-slate-200">Original claim ID</label><Input id="challenge-id" value={challengeClaimId} onChange={(event) => setChallengeClaimId(event.target.value)} placeholder="ss-…" className="border-white/10 bg-black/20 font-mono text-white shadow-none" /></div>
                     <div className="space-y-2"><div className="flex items-center justify-between"><label htmlFor="reason" className="text-sm font-medium text-slate-200">Why should validators recheck it?</label><span className="text-xs text-slate-600">{challengeReason.length}/700</span></div><Textarea id="reason" value={challengeReason} maxLength={700} onChange={(event) => setChallengeReason(event.target.value)} placeholder="A newer official correction materially changes the prior evidence…" className="min-h-24 resize-none border-white/10 bg-black/20 text-white shadow-none placeholder:text-slate-600" /></div>
@@ -594,9 +639,10 @@ export default function Home() {
                   <CardContent className="space-y-5 px-5 py-6 sm:px-7">
                     <div>
                       <CardTitle className="text-lg">Inspect a canonical case file</CardTitle>
-                      <CardDescription className="mt-1 text-slate-500">Loads the original verdict and every accepted challenge in order.</CardDescription>
+                      <CardDescription className="mt-1 text-slate-500">Read a verdict and its challenge history without a wallet. Export the stored evidence receipt for others to review.</CardDescription>
                     </div>
                     <div className="space-y-2"><label htmlFor="inspect-id" className="text-sm font-medium text-slate-200">Claim ID</label><Input id="inspect-id" value={inspectClaimId} onChange={(event) => setInspectClaimId(event.target.value)} placeholder="ss-…" className="border-white/10 bg-black/20 font-mono text-white shadow-none" /></div>
+                    <Button variant="outline" onClick={() => { setInspectClaimId(deployment.claimId); }} disabled={isWorking}>Use live review example</Button>
                     <Button size="lg" onClick={inspectRecord} disabled={isWorking} className="h-12 w-full rounded-xl border border-sky-300/20 bg-sky-300/10 font-semibold text-sky-100 hover:bg-sky-300/15">
                       {isWorking ? <LoaderCircle className="animate-spin" /> : <Search />} Load on-chain history
                     </Button>
@@ -609,7 +655,7 @@ export default function Home() {
                 <TabsContent value="finalize" className="mt-0">
                   <CardContent className="space-y-5 px-5 py-6 sm:px-7">
                     <div>
-                      <CardTitle className="text-lg">Finalize an uncontested record</CardTitle>
+                      <CardTitle className="text-lg">Close the challenge window</CardTitle>
                       <CardDescription className="mt-1 text-slate-500">After the fixed deadline, any wallet can seal the canonical verdict. The contract rejects early or repeated finalization.</CardDescription>
                     </div>
                     <div className="space-y-2"><label htmlFor="finalize-id" className="text-sm font-medium text-slate-200">Claim ID</label><Input id="finalize-id" value={finalizeClaimId} onChange={(event) => setFinalizeClaimId(event.target.value)} placeholder="ss-…" className="border-white/10 bg-black/20 font-mono text-white shadow-none" /></div>
@@ -639,10 +685,11 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-slate-400">Selected network: {deployment.label} · {deployment.chainId}. Studio supplies a test account; browser wallet use is optional.</p>
                 <Button variant="ghost" onClick={() => connectWallet().catch(handleCaught)} disabled={isWorking} className="w-full justify-start text-slate-400 hover:bg-white/5 hover:text-white">
                   {walletAddress ? <Check /> : <Wallet />} {walletAddress ? shortAddress(walletAddress) : "Connect wallet for writes"}
                 </Button>
-                {transactionHash ? <a href={"https://explorer-studio.genlayer.com/tx/" + transactionHash} target="_blank" rel="noreferrer" className="block truncate rounded-lg border border-white/8 bg-black/20 p-3 font-mono text-xs text-slate-400 hover:text-lime-200">{transactionHash}</a> : null}
+                {transactionHash ? <a href={deployment.explorer + "/tx/" + transactionHash} target="_blank" rel="noreferrer" className="block truncate rounded-lg border border-white/8 bg-black/20 p-3 font-mono text-xs text-slate-400 hover:text-lime-200">{transactionHash}</a> : null}
               </CardContent>
             </Card>
 
@@ -652,7 +699,7 @@ export default function Home() {
               {[["5", "sources"], ["7d", "challenge"], ["10", "rechecks"]].map(([value, label]) => <div key={label} className="rounded-xl border border-white/8 bg-white/[0.025] p-3 text-center"><span className="block text-lg font-semibold text-white">{value}</span><span className="text-[10px] uppercase tracking-wider text-slate-600">{label}</span></div>)}
             </div>
 
-            {contractReady ? <div className="grid grid-cols-2 gap-3"><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://explorer-studio.genlayer.com/address/" + contractAddress} target="_blank" rel="noreferrer">Contract <ExternalLink /></a></Button><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={"https://studio.genlayer.com/?import-contract=" + contractAddress} target="_blank" rel="noreferrer">Studio <ExternalLink /></a></Button></div> : <div className="rounded-xl border border-amber-300/15 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100/70">Milestone contract deployment is being connected.</div>}
+            {contractReady ? <div className="grid grid-cols-2 gap-3"><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={deployment.explorer + "/address/" + contractAddress} target="_blank" rel="noreferrer">Contract <ExternalLink /></a></Button><Button asChild variant="outline" className="border-white/10 bg-white/[0.025] text-slate-300 hover:bg-white/5 hover:text-white"><a href={deployment.studio + "/?import-contract=" + contractAddress} target="_blank" rel="noreferrer">Studio <ExternalLink /></a></Button></div> : <div className="rounded-xl border border-amber-300/15 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100/70">Milestone contract deployment is being connected.</div>}
           </aside>
         </div>
 
@@ -665,6 +712,9 @@ export default function Home() {
                 <CardDescription className="leading-6 text-slate-300">{record.summary}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 px-5 py-5">
+                <div className="flex flex-wrap gap-2"><Button onClick={exportReceipt} variant="outline">Export review receipt</Button><Button onClick={shareRecord} variant="outline">Copy review link</Button></div>
+                <p className="text-xs leading-5 text-slate-400">The JSON receipt is a snapshot read from this contract, with network, evidence hashes, revisions and deadline. Reload the live record to confirm its current state.</p>
+                {notice ? <p role="status" className="text-sm text-lime-200">{notice}</p> : null}
                 <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Evidence quality</span><span className="mt-2 block text-2xl font-semibold text-white">{record.quality_score}<small className="text-sm text-slate-600">/100</small></span></div><div className="rounded-xl border border-white/8 bg-black/20 p-4"><span className="text-[10px] uppercase tracking-wider text-slate-600">Revisions</span><span className="mt-2 block text-2xl font-semibold text-white">{record.revision_count}</span></div></div>
                 <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[10px] uppercase tracking-wider text-slate-600">Case state</span><Badge variant="outline" className="border-emerald-300/25 text-emerald-200">{record.status.replaceAll("_", " ")}</Badge></div><p className="mt-2 text-xs leading-5 text-slate-400">Challenge deadline: {new Date(record.challenge_deadline * 1000).toLocaleString()} (transaction time)</p>{caseStatus ? <p className="mt-1 text-xs text-slate-500">{caseStatus.can_challenge ? `${Math.ceil(caseStatus.seconds_remaining / 3600)} hours remaining` : caseStatus.can_finalize ? "Ready to finalize" : "Finalized"}</p> : null}</div>
                 <div className={"rounded-xl border p-4 " + (record.trust_gate_passed ? "border-lime-300/20 bg-lime-300/[0.04]" : "border-amber-300/20 bg-amber-300/[0.04]")}>
@@ -683,7 +733,7 @@ export default function Home() {
             <Card className="glass-card gap-0 border-white/10 py-0 text-white">
               <CardHeader className="border-b border-white/8 px-5 py-5"><CardTitle className="flex items-center gap-2"><FileClock className="size-5 text-fuchsia-300" /> Append-only decision timeline</CardTitle><CardDescription className="text-slate-500">The accepted baseline and every recheck remain independently inspectable.</CardDescription></CardHeader>
               <CardContent className="space-y-4 px-5 py-5">
-                <div className="timeline-entry relative rounded-xl border border-white/8 bg-black/18 p-4 pl-5"><span className="absolute -left-1 top-5 size-2.5 rounded-full bg-lime-300 shadow-[0_0_14px_#bef264]" /><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">Initial consensus verdict</span><Badge variant="outline" className={verdictClass(record.original_verdict)}>{verdictLabel(record.original_verdict)}</Badge></div><p className="mt-3 text-sm leading-6 text-slate-400">{record.claim}</p></div>
+                <div className="timeline-entry relative rounded-xl border border-white/8 bg-black/18 p-4 pl-5"><span className="absolute -left-1 top-5 size-2.5 rounded-full bg-lime-300 shadow-[0_0_14px_#bef264]" /><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">Initial consensus verdict</span><Badge variant="outline" className={verdictClass(record.original_verdict)}>{verdictLabel(record.original_verdict)}</Badge></div><p className="mt-3 text-sm leading-6 text-slate-400">{record.claim}</p><p className="mt-2 text-sm leading-6 text-slate-300">{originalRecord?.summary}</p><p className="mt-2 text-xs text-slate-400">Original evidence quality: {originalRecord?.quality_score}/100. This stored first decision remains unchanged after challenges.</p></div>
                 {revisions.map((revision) => <div key={revision.revision_id} className="timeline-entry relative rounded-xl border border-fuchsia-300/15 bg-fuchsia-300/[0.035] p-4 pl-5"><span className="absolute -left-1 top-5 size-2.5 rounded-full bg-fuchsia-300 shadow-[0_0_14px_#f0abfc]" /><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-medium text-white">Challenge · {revision.resolution.replaceAll("_", " ")}</span><Badge variant="outline" className={verdictClass(revision.canonical_verdict)}>{verdictLabel(revision.canonical_verdict)}</Badge></div><p className="mt-3 text-sm leading-6 text-slate-300">{revision.rationale}</p><p className="mt-2 text-xs text-slate-500">Counter-source trust: {revision.counter_trust_gate_passed ? "passed" : "not passed"} · Original content drift: {revision.content_drift_detected ? "detected" : "not detected"}</p><div className="mt-3"><FingerprintValue value={revision.challenge_fingerprint} /></div></div>)}
                 {revisions.length === 0 ? <div className="rounded-xl border border-dashed border-white/10 p-5 text-center text-sm text-slate-600">No accepted challenge has been appended yet.</div> : null}
               </CardContent>
@@ -701,9 +751,13 @@ export default function Home() {
       <footer className="relative z-10 border-t border-white/8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <span>SourceSeal Evidence Finality Protocol · Built on GenLayer Studionet</span>
-          <div className="flex flex-wrap gap-4"><a href="/milestone" className="hover:text-lime-200">Milestone delta</a><a href={INITIAL_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Verification proof</a><a href={CHALLENGE_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Challenge proof</a><a href={FINALITY_GUARD_PROOF_URL} target="_blank" rel="noreferrer" className="hover:text-lime-200">Finality guard</a></div>
+          <div className="flex flex-wrap gap-4"><a href="/milestone" className="hover:text-lime-200">Milestone delta and live evidence</a><a href="/source" className="hover:text-lime-200">Contract source</a></div>
         </div>
       </footer>
     </main>
   );
+}
+
+export default function Home() {
+  return <Suspense fallback={<main className="site-shell min-h-screen p-8 text-white">Loading SourceSeal…</main>}><SourceSealApp /></Suspense>;
 }

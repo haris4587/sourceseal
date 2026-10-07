@@ -1,6 +1,8 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# v0.3.0
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
-from genlayer import *
+import genlayer as gl
+from genlayer.types import *
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -13,15 +15,15 @@ MAX_EVIDENCE_BYTES = 300_000
 MAX_REVISIONS_PER_CLAIM = 10
 
 
-class SourceSeal(gl.Contract):
+class SourceSeal(gl.contract.Contract):
     """Consensus-backed claims with append-only challenge and re-adjudication."""
 
-    verdicts: TreeMap[str, str]
-    initial_records: TreeMap[str, str]
-    revisions: TreeMap[str, str]
-    revision_ids_by_claim: TreeMap[str, str]
-    verdict_ids: DynArray[str]
-    challenge_ids: DynArray[str]
+    verdicts: gl.storage.TreeMap[str, str]
+    initial_records: gl.storage.TreeMap[str, str]
+    revisions: gl.storage.TreeMap[str, str]
+    revision_ids_by_claim: gl.storage.TreeMap[str, str]
+    verdict_ids: gl.storage.DynArray[str]
+    challenge_ids: gl.storage.DynArray[str]
     total_verdicts: u32
     total_challenges: u32
 
@@ -347,7 +349,7 @@ Return JSON only:
             )
             return validation.get("acceptable", False) is True
 
-        result = gl.vm.run_nondet_unsafe(analyze_sources, validate_analysis)
+        result = gl.vm.run_nondet(analyze_sources, validate_analysis)
         allowed_verdicts = (
             "SUPPORTED",
             "CONTRADICTED",
@@ -607,7 +609,7 @@ Return JSON only:
             )
             return validation.get("acceptable", False) is True
 
-        result = gl.vm.run_nondet_unsafe(analyze_challenge, validate_challenge)
+        result = gl.vm.run_nondet(analyze_challenge, validate_challenge)
         resolution = result.get("resolution", "")
         canonical_verdict = result.get("canonical_verdict", "")
         confidence = result.get("confidence", "")
@@ -804,11 +806,11 @@ Return JSON only:
         )
 
     @gl.public.view
-    def get_recent_ids(self) -> DynArray[str]:
+    def get_recent_ids(self) -> gl.storage.DynArray[str]:
         return self.verdict_ids
 
     @gl.public.view
-    def get_recent_challenge_ids(self) -> DynArray[str]:
+    def get_recent_challenge_ids(self) -> gl.storage.DynArray[str]:
         return self.challenge_ids
 
     @gl.public.view

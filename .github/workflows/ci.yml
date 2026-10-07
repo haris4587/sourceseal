@@ -25,4 +25,7 @@ jobs:
       - run: npx tsc --noEmit --pretty false
       - run: npm run lint
       - run: npm test
+      - run: pip install -r requirements-test.txt
+      - run: python scripts/prepare-test-runtime.py
+      - run: python -m pytest tests/direct -q
       - run: python -m py_compile contracts/source_seal.py tests/direct/test_source_seal.py
